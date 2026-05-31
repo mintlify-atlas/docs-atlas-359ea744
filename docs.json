@@ -1,72 +1,116 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "Prowl.Vector",
+  "theme": "luma",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
-  },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "primary": "#6C63FF",
+    "light": "#EEF0FF",
+    "dark": "#1A1830"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/ProwlEngine/Prowl.Vector"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/ProwlEngine/Prowl.Vector"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Types",
+            "pages": [
+              "core/vectors",
+              "core/matrices",
+              "core/quaternions",
+              "core/colors-and-rects"
+            ]
+          },
+          {
+            "group": "Geometry & Spatial",
+            "pages": [
+              "geometry/bounding-volumes",
+              "geometry/intersection",
+              "geometry/gjk-collision",
+              "geometry/transform",
+              "geometry/spline"
+            ]
+          },
+          {
+            "group": "Procedural Geometry",
+            "pages": [
+              "procedural/geometry-data",
+              "procedural/generators",
+              "procedural/operators",
+              "procedural/csg"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "utilities/maths",
+              "utilities/noise",
+              "utilities/rng"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Vectors",
+            "pages": [
+              "api/double2",
+              "api/double3",
+              "api/double4",
+              "api/float2",
+              "api/float3",
+              "api/float4",
+              "api/int2",
+              "api/int3",
+              "api/int4"
+            ]
+          },
+          {
+            "group": "Matrices",
+            "pages": [
+              "api/double4x4",
+              "api/double3x3",
+              "api/double2x2",
+              "api/float4x4",
+              "api/float3x3",
+              "api/float2x2"
+            ]
+          },
+          {
+            "group": "Geometry & Other",
+            "pages": [
+              "api/quaternion",
+              "api/aabb",
+              "api/frustum",
+              "api/ray-plane-sphere",
+              "api/maths-static",
+              "api/noise-static",
+              "api/rng-class"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

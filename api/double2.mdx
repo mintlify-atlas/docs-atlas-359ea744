@@ -1,0 +1,194 @@
+---
+title: "Double2 — 2D Double-Precision Vector"
+sidebarTitle: "Double2"
+description: "API reference for Double2: constructors, fields, static constants, arithmetic operators, and static methods including Dot, Normalize, Slerp, Reflect, and Refract."
+---
+
+`Double2` is a 2-component vector backed by `double`-precision (64-bit) floating-point values. It is defined in the `Prowl.Vector` namespace and marked `[Serializable]`, making it suitable for serialization workflows throughout the Prowl Engine.
+
+## Declaration
+
+```csharp
+[Serializable]
+public partial struct Double2 : IEquatable<Double2>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `X` | `double` | The X (horizontal) component. |
+| `Y` | `double` | The Y (vertical) component. |
+
+---
+
+## Static Constants
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `Zero` | `(0, 0)` | The zero vector. |
+| `One` | `(1, 1)` | A vector with all components set to one. |
+| `UnitX` | `(1, 0)` | The unit vector along the X-axis. |
+| `UnitY` | `(0, 1)` | The unit vector along the Y-axis. |
+
+---
+
+## Constructors
+
+| Signature | Description |
+|-----------|-------------|
+| `Double2(double scalar)` | Sets both `X` and `Y` to `scalar`. |
+| `Double2(double x, double y)` | Sets `X` and `Y` individually. |
+| `Double2(Double2 v)` | Copy constructor. |
+| `Double2(double[] array)` | Reads components from a `double[]` of at least length 2. |
+| `Double2(IEnumerable<double> values)` | Reads components from an enumerable of at least 2 elements. |
+| `Double2(ReadOnlySpan<double> span)` | Reads components from a read-only span of at least length 2. |
+| `Double2(Span<double> span)` | Reads components from a span of at least length 2. |
+| `Double2(Float2 v)` | Widens a `Float2` to double precision (implicit cast). |
+| `Double2(Int2 v)` | Converts an `Int2` to double precision (explicit cast). |
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `this[int index]` | `double` | Gets or sets a component by index. `0` → `X`, `1` → `Y`. Throws `IndexOutOfRangeException` for any other value. |
+
+---
+
+## Operators
+
+### Arithmetic — vector × vector (component-wise)
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Double2 + Double2` | Component-wise addition. |
+| `-` | `Double2 - Double2` | Component-wise subtraction. |
+| `*` | `Double2 * Double2` | Component-wise multiplication. |
+| `/` | `Double2 / Double2` | Component-wise division. |
+| `%` | `Double2 % Double2` | Component-wise remainder. |
+
+### Arithmetic — vector × scalar
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Double2 + double` / `double + Double2` | Adds scalar to each component. |
+| `-` | `Double2 - double` / `double - Double2` | Subtracts scalar from each component (or vice-versa). |
+| `*` | `Double2 * double` / `double * Double2` | Scales each component. |
+| `/` | `Double2 / double` / `double / Double2` | Divides each component by scalar (or divides scalar by each component). |
+| `%` | `Double2 % double` / `double % Double2` | Remainder with scalar. |
+
+### Unary & comparison
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| Unary `-` | `-Double2` | Negates both components. |
+| `==` | `Double2 == Double2` | Component-wise equality. |
+| `!=` | `Double2 != Double2` | Component-wise inequality. |
+
+### Casts
+
+| Conversion | Kind | Description |
+|------------|------|-------------|
+| `Float2` → `Double2` | `implicit` | Widens single-precision to double-precision. |
+| `Int2` → `Double2` | `explicit` | Converts integer components to `double`. |
+
+---
+
+## Static Methods
+
+### Geometric
+
+| Signature | Description |
+|-----------|-------------|
+| `static double Dot(Double2 x, Double2 y)` | Returns the dot product `x.X*y.X + x.Y*y.Y`. |
+| `static double Length(Double2 v)` | Returns the Euclidean length (magnitude) of `v`. |
+| `static double LengthSquared(Double2 v)` | Returns the squared length; cheaper than `Length` when only comparison is needed. |
+| `static Double2 Normalize(Double2 v)` | Returns a unit-length copy of `v`, or `Zero` if the vector is near-zero. |
+| `static double Distance(Double2 x, Double2 y)` | Returns the Euclidean distance between `x` and `y`. |
+| `static double DistanceSquared(Double2 x, Double2 y)` | Returns the squared distance between `x` and `y`. |
+| `static double AngleBetween(Double2 a, Double2 b)` | Returns the angle in **radians** between two vectors. |
+| `static double SignedAngleBetween(Double2 a, Double2 b)` | Returns the signed angle in **radians** between two 2D vectors (positive = counter-clockwise). |
+| `static bool IsParallel(Double2 a, Double2 b, double tolerance = 1e-15)` | Returns `true` if the two vectors point in the same or opposite directions within the given tolerance. |
+| `static bool IsPerpendicular(Double2 a, Double2 b, double tolerance = 1e-15)` | Returns `true` if the dot product is within `tolerance` of zero. |
+
+### Interpolation
+
+| Signature | Description |
+|-----------|-------------|
+| `static Double2 Slerp(Double2 a, Double2 b, double t)` | Spherically interpolates between `a` and `b`; `t` is clamped to `[0, 1]`. |
+| `static Double2 SlerpUnclamped(Double2 a, Double2 b, double t)` | Spherical interpolation without clamping `t`. |
+| `static Double2 MoveTowards(Double2 current, Double2 target, double maxDistanceDelta)` | Moves `current` toward `target` by at most `maxDistanceDelta`. |
+
+### Projection & Reflection
+
+| Signature | Description |
+|-----------|-------------|
+| `static Double2 Project(Double2 a, Double2 b)` | Projects vector `a` onto vector `b`. |
+| `static Double2 ProjectOntoPlane(Double2 vector, Double2 planeNormal)` | Removes the component of `vector` along `planeNormal`. |
+| `static Double2 Reflect(Double2 vector, Double2 normal)` | Reflects `vector` off the surface defined by `normal`. |
+| `static Double2 Refract(Double2 incident, Double2 normal, double eta)` | Computes the refraction direction given an index-of-refraction ratio `eta`. Returns `(0, 0)` on total internal reflection. |
+
+---
+
+## Swizzles
+
+`Double2` exposes all GLSL-style 2-component swizzle properties (auto-generated). Read-write swizzles reassign the underlying components; read-only swizzles are computed getters.
+
+**Examples:**
+
+```csharp
+Double2 v = new Double2(1.0, 2.0);
+
+Double2 swapped = v.YX;   // (2.0, 1.0)
+Double2 same    = v.XY;   // (1.0, 2.0)  — settable
+Double2 xRepeat = v.XX;   // (1.0, 1.0)  — get-only
+Double2 yRepeat = v.YY;   // (2.0, 2.0)  — get-only
+```
+
+---
+
+## Instance Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `double[] ToArray()` | Returns `[X, Y]` as a new array. |
+| `string ToString()` | Formats as `(X, Y)` using the current culture. |
+| `string ToString(string format)` | Formats each component with the given numeric format string. |
+| `string ToString(string format, IFormatProvider formatProvider)` | Fully customizable format output. |
+| `bool Equals(Double2 other)` | Component-wise equality. |
+| `int GetHashCode()` | Combined hash of both components. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// Create two direction vectors
+Double2 a = new Double2(3.0, 4.0);
+Double2 b = Double2.UnitX;
+
+// Normalise and measure
+Double2 aNorm = Double2.Normalize(a);
+double  len   = Double2.Length(a);         // 5.0
+double  dot   = Double2.Dot(aNorm, b);     // 0.6  (cos of angle)
+
+// Interpolate along a great arc
+Double2 start = Double2.UnitX;
+Double2 end   = Double2.UnitY;
+Double2 mid   = Double2.Slerp(start, end, 0.5);  // ≈ (0.707, 0.707)
+
+// Reflect an incoming ray off a surface
+Double2 ray    = new Double2(1.0, -1.0);
+Double2 normal = Double2.UnitY;
+Double2 reflected = Double2.Reflect(ray, normal);  // (1.0, 1.0)
+
+Console.WriteLine($"Normalised a : {aNorm}");
+Console.WriteLine($"Slerp midpoint: {mid}");
+Console.WriteLine($"Reflected ray : {reflected}");
+```

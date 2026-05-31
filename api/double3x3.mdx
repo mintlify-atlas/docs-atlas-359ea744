@@ -1,0 +1,352 @@
+---
+title: "Double3x3 — 3×3 Double-Precision Matrix"
+sidebarTitle: "Double3x3"
+description: "API reference for Double3x3: constructors, column fields, static factory methods for rotation/scale/normal transforms, and matrix arithmetic operations."
+---
+
+`Double3x3` is a 3×3 double-precision floating-point matrix in the `Prowl.Vector` namespace. It uses **column-major storage** — each column field (`c0`, `c1`, `c2`) is a `Double3`. The struct is marked `[Serializable]` and is frequently used for pure rotation/scale transforms, normal-vector transforms, and as the upper-left 3×3 block of a `Double4x4`.
+
+## Declaration
+
+```csharp
+[System.Serializable]
+public partial struct Double3x3 : System.IEquatable<Double3x3>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `c0` | `Double3` | Column 0 — stores `m00, m10, m20` (X-basis / first column). |
+| `c1` | `Double3` | Column 1 — stores `m01, m11, m21` (Y-basis / second column). |
+| `c2` | `Double3` | Column 2 — stores `m02, m12, m22` (Z-basis / third column, also aliased as `Translation`). |
+
+Storage is column-major: `this[row, col]` resolves to `this[col][row]`.
+
+---
+
+## Static Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Double3x3.Identity` | Diagonal `(1, 1, 1)` | The multiplicative identity. |
+| `Double3x3.Zero` | All zeros | A zeroed matrix. |
+
+```csharp
+Double3x3 m = Double3x3.Identity;
+```
+
+---
+
+## Constructors
+
+### From three column vectors
+
+```csharp
+public Double3x3(Double3 col0, Double3 col1, Double3 col2)
+```
+
+Constructs directly from three column vectors.
+
+---
+
+### From nine scalar values (row-major argument order)
+
+```csharp
+public Double3x3(
+    double m00, double m01, double m02,
+    double m10, double m11, double m12,
+    double m20, double m21, double m22)
+```
+
+Arguments are supplied in **row-major** reading order. Internally stored as column-major.
+
+---
+
+### Broadcast scalar
+
+```csharp
+public Double3x3(double v)
+```
+
+Sets every element to `v`.
+
+---
+
+### Widening from Float3x3
+
+```csharp
+public Double3x3(Float3x3 m)
+```
+
+Widens each single-precision column to double. Explicit cast `(Double3x3)float3x3` also available.
+
+---
+
+### Extract upper-left from Double4x4
+
+```csharp
+public Double3x3(Double4x4 d4x4)
+```
+
+Extracts the 3×3 rotation/scale block from a full 4×4 matrix (`c0.XYZ`, `c1.XYZ`, `c2.XYZ`).
+
+---
+
+## Properties
+
+### Translation
+
+```csharp
+public Double3 Translation { get; set; }
+```
+
+Aliases column `c2`. In an affine 2D homogeneous context this column holds the translation; in a pure 3D rotation matrix the alias is a naming convention only.
+
+---
+
+### Column indexer
+
+```csharp
+public ref Double3 this[int index]   // index in [0, 2]
+```
+
+Returns a by-reference handle to the column, allowing in-place mutation without copies. Throws `ArgumentOutOfRangeException` for out-of-range indices.
+
+---
+
+### Element indexer
+
+```csharp
+public double this[int row, int column] { get; set; }   // each in [0, 2]
+```
+
+Scalar element access. Resolves to `this[column][row]`.
+
+---
+
+## Instance Methods
+
+### Row accessors
+
+```csharp
+public Double3 GetRow0();
+public Double3 GetRow1();
+public Double3 GetRow2();
+
+public void SetRow0(Double3 value);
+public void SetRow1(Double3 value);
+public void SetRow2(Double3 value);
+```
+
+Read or write a full matrix row across all three columns.
+
+---
+
+### Invert (instance)
+
+```csharp
+public Double3x3 Invert()
+```
+
+Convenience wrapper around the static overload. Returns the inverted matrix or a `NaN`-filled matrix if singular.
+
+---
+
+## Static Factory Methods
+
+### FromQuaternion
+
+```csharp
+public static Double3x3 FromQuaternion(Quaternion q)
+```
+
+Builds a pure rotation matrix from a unit quaternion using the standard half-angle product formula. The nine resulting elements represent the 3D rotation without any scale component.
+
+---
+
+### FromAxisAngle
+
+```csharp
+public static Double3x3 FromAxisAngle(Double3 axis, double angle)
+```
+
+Builds a rotation matrix using Rodrigues' rotation formula. `axis` **must be normalised**; `angle` is in **radians**.
+
+---
+
+### RotateX / RotateY / RotateZ
+
+```csharp
+public static Double3x3 RotateX(double angle)
+public static Double3x3 RotateY(double angle)
+public static Double3x3 RotateZ(double angle)
+```
+
+Returns an elementary rotation matrix around the respective world axis. `angle` is in **radians**. Computes `sin`/`cos` once and inserts them into the canonical locations.
+
+---
+
+### Scale
+
+```csharp
+public static Double3x3 Scale(double s)                     // uniform
+public static Double3x3 Scale(double x, double y, double z) // non-uniform
+public static Double3x3 Scale(Double3 v)                    // from vector
+```
+
+Returns a diagonal scale matrix. The uniform overload places `s` on all three diagonal entries; the non-uniform overloads allow per-axis values.
+
+---
+
+### CreateLookRotation
+
+```csharp
+public static Double3x3 CreateLookRotation(Double3 forward, Double3 up)
+```
+
+Builds a 3×3 view-rotation matrix (the rotational part of a look-at transform) from a normalized `forward` direction and a reference `up` vector. Returns `Identity` if either input is degenerate or if `forward` and `up` are collinear.
+
+Basis construction:
+- `zAxis = normalize(forward)`
+- `xAxis = normalize(cross(up, zAxis))`
+- `yAxis = cross(zAxis, xAxis)`
+
+---
+
+### Transpose
+
+```csharp
+public static Double3x3 Transpose(Double3x3 m)
+```
+
+Returns the transpose — each new column is the corresponding row of `m`. For orthonormal rotation matrices, this is equivalent to the inverse.
+
+---
+
+### Determinant
+
+```csharp
+public static double Determinant(Double3x3 m)
+```
+
+Computes the scalar determinant via the scalar triple-product formula (`a · (b × c)`).
+
+---
+
+### Invert (static)
+
+```csharp
+public static bool Invert(Double3x3 matrix, out Double3x3 result)
+```
+
+Computes the inverse via the adjugate matrix divided by the determinant. Returns `true` on success. If `|det| < double.Epsilon`, writes `NaN` to `result` and returns `false`.
+
+---
+
+### TransformPoint (2D homogeneous)
+
+```csharp
+public static Double2 TransformPoint(Double2 point, Double3x3 matrix)
+```
+
+Promotes `point` to homogeneous coordinates `(x, y, 1)`, multiplies by the 3×3 matrix, then divides by `z` to recover the 2D result.
+
+---
+
+### TransformNormal
+
+```csharp
+// 2-D normal (delegates to Double2x2.TransformNormal via upper-left 2x2)
+public static Double2 TransformNormal(Double2 normal, Double3x3 matrix)
+
+// 3-D normal (inverse-transpose method)
+public static Double3 TransformNormal(Double3 normal, Double3x3 matrix)
+```
+
+Transforms a normal vector correctly under non-uniform scale. The 3D overload computes `(M⁻¹)ᵀ · normal` then normalises; the 2D overload extracts the upper-left `Double2x2` and delegates.
+
+---
+
+## Operators
+
+| Operator | Signature | Notes |
+|----------|-----------|-------|
+| `*` | `Double3x3 * Double3x3 → Double3x3` | Matrix product. `A * B` applies B first, then A. |
+| `*` | `Double3x3 * Double3 → Double3` | Matrix–vector product. |
+| `==` | `Double3x3 == Double3x3 → bool` | Component-wise equality. |
+| `!=` | `Double3x3 != Double3x3 → bool` | Logical negation of `==`. |
+
+### Explicit casts
+
+```csharp
+explicit operator Double3x3(Float3x3 m)   // widening: float → double
+explicit operator Float3x3(Double3x3 m)   // narrowing (on Float3x3 side)
+```
+
+---
+
+## Additional Methods
+
+### ToArray
+
+```csharp
+public double[] ToArray()
+```
+
+Returns a `double[9]` in row-major order (`[row * 3 + col]`).
+
+---
+
+### ToString
+
+```csharp
+public override string ToString()
+public string ToString(string format)
+public string ToString(string format, IFormatProvider formatProvider)
+```
+
+Formats all 9 components grouped by row, e.g. `Double3x3(1, 0, 0,  0, 1, 0,  0, 0, 1)`.
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// 1. Rotation from a unit quaternion
+var quat = Quaternion.CreateFromYawPitchRoll(0.3, 0.1, 0.0);
+Double3x3 rot = Double3x3.FromQuaternion(quat);
+
+// 2. Rotation around an arbitrary axis
+var axis  = Double3.Normalize(new Double3(1.0, 1.0, 0.0));
+Double3x3 axisRot = Double3x3.FromAxisAngle(axis, Maths.PI / 4.0); // 45°
+
+// 3. Elementary rotations
+Double3x3 rx = Double3x3.RotateX(Maths.PI / 6.0); // 30° around X
+Double3x3 ry = Double3x3.RotateY(Maths.PI / 4.0); // 45° around Y
+Double3x3 combined = rx * ry;
+
+// 4. Non-uniform scale
+Double3x3 scale = Double3x3.Scale(2.0, 1.0, 0.5);
+
+// 5. Transform a normal through a scaled matrix
+Double3 normal    = Double3.UnitY;
+Double3 tNormal   = Double3x3.TransformNormal(normal, scale);  // inverse-transpose applied
+
+// 6. View rotation (look-at, rotation part only)
+Double3x3 lookRot = Double3x3.CreateLookRotation(
+    forward: Double3.Normalize(new Double3(0.0, -1.0, 1.0)),
+    up:      Double3.UnitY);
+
+// 7. Extract from a 4x4 matrix
+Double4x4 trs = Double4x4.CreateTRS(Double3.Zero, quat, Double3.One);
+Double3x3 upperLeft = new Double3x3(trs);
+
+// 8. Inverse and determinant
+bool ok = Double3x3.Invert(combined, out Double3x3 inv);
+double det = Double3x3.Determinant(combined);
+```

@@ -1,20 +1,84 @@
 ---
-title: "Introduction"
-description: "Welcome to your project"
+title: "Prowl.Vector: 3D Math Library for C#"
+sidebarTitle: "Home"
+description: "A comprehensive 32-bit and 64-bit 3D mathematics library for C#, Unity-inspired API, covering vectors, matrices, quaternions, geometry, noise, and collision detection."
 ---
 
-Write a short description of your product here. What it does, who it's for, and what they can accomplish with it.
+Prowl.Vector is a high-performance mathematics library built for the [Prowl Game Engine](https://github.com/ProwlEngine/Prowl) and available as a standalone NuGet package. It provides double-precision (64-bit) and single-precision (32-bit) types for vectors, matrices, and quaternions — with a clean, Unity-inspired API that feels immediately familiar to game and graphics developers.
 
-<Tip>
-  Ready to make this your own? Start by editing this page. Update your `docs.json` file to customize your site. Then fill out the [Quickstart](/quickstart) page.
-</Tip>
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Get Prowl.Vector installed and write your first vector and matrix operations in minutes.
+  </Card>
+  <Card title="Installation" icon="package" href="/installation">
+    Add the NuGet package to your .NET 6/7/8/9/10 or netstandard2.1 project.
+  </Card>
+  <Card title="Core Types" icon="cube" href="/core/vectors">
+    Explore Double3, Float3, Int3, Quaternion, matrices, Color, and Rect types.
+  </Card>
+  <Card title="Geometry & Spatial" icon="shapes" href="/geometry/bounding-volumes">
+    AABB, Sphere, Frustum, Ray, Plane, Cone, Triangle — and GJK collision detection.
+  </Card>
+  <Card title="Procedural Geometry" icon="diagram-project" href="/procedural/geometry-data">
+    Build, modify, and boolean-combine meshes with GeometryData, generators, and CSG.
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/double3">
+    Full type signatures, constructors, and member documentation for every public type.
+  </Card>
+</CardGroup>
 
-<Card title="Quickstart" icon="rocket" href="/quickstart">
-  This card links to the quickstart page in your project.
-</Card>
-<Card title="Components" icon="puzzle-piece" href="https://mintlify.com/docs/components">
-  Add cards, callouts, steps, tabs, and more to design and structure your pages.
-</Card>
-<Card title="Settings" icon="gear" href="https://mintlify.com/docs/organize/settings">
-  Set your site name, branding, and navigation in the `docs.json` file.
-</Card>
+## What's Inside
+
+Prowl.Vector covers every layer of 3D math a game engine or graphics application needs:
+
+<CardGroup cols={3}>
+  <Card title="Vectors" icon="arrows-to-dot" href="/core/vectors">
+    Double2/3/4, Float2/3/4, Int2/3/4 with swizzles, arithmetic, dot, cross, normalize, lerp, and more.
+  </Card>
+  <Card title="Matrices" icon="table-cells" href="/core/matrices">
+    2×2, 3×3, and 4×4 matrices in both double and float precision. TRS, view, projection, inversion.
+  </Card>
+  <Card title="Quaternions" icon="rotate" href="/core/quaternions">
+    Euler angles, axis-angle, Slerp, Nlerp, LookRotation, and matrix conversion.
+  </Card>
+  <Card title="Collision" icon="explosion" href="/geometry/gjk-collision">
+    GJK algorithm for any IBoundingShape pair, plus extensive Intersection static tests.
+  </Card>
+  <Card title="Noise" icon="wave-sine" href="/utilities/noise">
+    Simplex, Classic Perlin, periodic, and Cellular (Worley) noise in 2D, 3D, and 4D.
+  </Card>
+  <Card title="RNG" icon="dice" href="/utilities/rng">
+    xoshiro256** random number generator with geometry helpers and Gaussian distribution.
+  </Card>
+</CardGroup>
+
+## Get Started
+
+<Steps>
+  <Step title="Install the package">
+    Add Prowl.Vector via NuGet to your .NET project:
+    ```bash
+    dotnet add package Prowl.Vector
+    ```
+  </Step>
+  <Step title="Import the namespace">
+    ```csharp
+    using Prowl.Vector;
+    using Prowl.Vector.Geometry; // for AABB, Intersection, GJK, etc.
+    ```
+  </Step>
+  <Step title="Start computing">
+    ```csharp
+    var position = new Double3(1.0, 2.0, 3.0);
+    var forward  = Double3.Normalize(new Double3(0, 0, -1));
+    var transform = Double4x4.CreateTRS(position, Quaternion.Identity, Double3.One);
+    ```
+  </Step>
+  <Step title="Explore the docs">
+    Head to [Core Types](/core/vectors) to learn about vectors, matrices, and quaternions, or jump straight to the [API Reference](/api/double3) for complete type signatures.
+  </Step>
+</Steps>
+
+<Note>
+  Prowl.Vector targets **.NET 6, 7, 8, 9, 10** and **netstandard2.1**. It has no runtime dependencies beyond the .NET base class library.
+</Note>

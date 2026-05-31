@@ -1,0 +1,225 @@
+---
+title: "Maths: Constants, Scalar Functions, and Conversions"
+sidebarTitle: "Maths"
+description: "Reference for the Maths static class — mathematical constants, scalar functions (Lerp, Clamp, Remap, Floor, Abs), and angle conversions."
+---
+
+`Maths` (in `Prowl.Vector`) is a static class providing constants and scalar math functions that complement the vector and matrix types. Every method is decorated with `[MethodImpl(MethodImplOptions.AggressiveInlining)]` for zero-overhead usage in hot code paths, and most methods support all scalar types (`float`, `double`, `int`) as well as componentwise overloads for `Float2`/`Float3`/`Float4`, `Double2`/`Double3`/`Double4`, `Int2`/`Int3`/`Int4`.
+
+---
+
+## Constants
+
+### Basic
+
+| Constant | Value | Description |
+|---|---|---|
+| `PI` | `3.14159265f` | Mathematical constant π |
+| `E` | `2.71828182f` | Euler's number |
+| `TwoPI` | `6.28318530f` | 2π — full circle in radians |
+| `Tau` | `6.28318530f` | Alias for `TwoPI` |
+| `Three_PI_2` | `4.71238898f` | 3π / 2 |
+| `One_PI` | `0.31830989f` | 1 / π |
+| `Two_PI` | `0.63661977f` | 2 / π |
+| `Four_PI` | `1.27323954f` | 4 / π |
+| `PI_2` | `1.57079632f` | π / 2 |
+| `PI_3` | `1.04719755f` | π / 3 |
+| `PI_4` | `0.78539816f` | π / 4 |
+| `PI_6` | `0.52359877f` | π / 6 |
+| `PI_8` | `0.39269908f` | π / 8 |
+
+### Square Roots
+
+| Constant | Value | Description |
+|---|---|---|
+| `Sqrt2` | `1.41421356f` | √2 |
+| `Sqrt3` | `1.73205080f` | √3 |
+| `Sqrt5` | `2.23606797f` | √5 |
+| `Sqrt_PI` | `1.77245385f` | √π |
+| `Sqrt_E` | `1.64872127f` | √e |
+| `One_Sqrt2` | `0.70710678f` | 1 / √2 |
+| `One_Sqrt_PI` | `0.56418958f` | 1 / √π |
+| `Sqrt_TwoPI` | `2.50662827f` | √(2π) — appears in the normal distribution |
+| `One_Sqrt_TwoPI` | `0.39894228f` | 1 / √(2π) — Gaussian normalization factor |
+| `Sqrt_Two_PI` | `0.79788456f` | √(2/π) |
+
+### Logarithms
+
+| Constant | Value | Description |
+|---|---|---|
+| `Ln2` | `0.69314718f` | ln(2) |
+| `Ln3` | `1.09861228f` | ln(3) |
+| `Ln10` | `2.30258509f` | ln(10) |
+| `Log2_E` | `1.44269504f` | log₂(e) |
+| `Log10_E` | `0.43429448f` | log₁₀(e) |
+| `Log10_2` | `0.30102999f` | log₁₀(2) |
+
+### Degrees / Radians
+
+| Constant | Value | Description |
+|---|---|---|
+| `Deg2Rad` | `0.01745329f` | Multiply a degree value by this to get radians (π / 180) |
+| `Rad2Deg` | `57.2957795f` | Multiply a radian value by this to get degrees (180 / π) |
+
+### Trigonometric Values
+
+| Constant | Value | Description |
+|---|---|---|
+| `Sin_PI_4` | `0.70710678f` | sin(π/4) = cos(π/4) = 1/√2 |
+| `Sin_PI_3` | `0.86602540f` | sin(π/3) = √3/2 |
+| `Sin_PI_6` | `0.5f` | sin(π/6) = 1/2 |
+| `Tan_PI_4` | `1.0f` | tan(π/4) = 1 |
+| `Tan_PI_3` | `1.73205080f` | tan(π/3) = √3 |
+| `Tan_PI_6` | `0.57735026f` | tan(π/6) = 1/√3 |
+
+### Common Fractions
+
+| Constant | Value | Description |
+|---|---|---|
+| `Half` | `0.5f` | 1/2 |
+| `Third` | `0.33333333f` | 1/3 |
+| `TwoThirds` | `0.66666666f` | 2/3 |
+| `Quarter` | `0.25f` | 1/4 |
+| `ThreeQuarters` | `0.75f` | 3/4 |
+| `Sixth` | `0.16666666f` | 1/6 |
+| `FiveSixths` | `0.83333333f` | 5/6 |
+
+### Special Constants
+
+| Constant | Value | Description |
+|---|---|---|
+| `GoldenRatio` | `1.61803398f` | φ — the golden ratio |
+| `SilverRatio` | `2.41421356f` | 1 + √2 |
+| `EulerGamma` | `0.57721566f` | Euler–Mascheroni constant (γ) |
+| `Catalan` | `0.91596559f` | Catalan's constant |
+| `E_Neg_Half` | `0.60653065f` | e^(−0.5) |
+
+### Physics
+
+| Constant | Value | Description |
+|---|---|---|
+| `SpeedOfLight` | `299792458.0f` | Speed of light in vacuum (m/s) |
+| `StandardGravity` | `9.80665f` | Standard gravitational acceleration (m/s²) |
+| `StandardTemperature` | `273.15f` | Standard temperature in Kelvin (0 °C) |
+| `AbsoluteZero` | `−273.15f` | Absolute zero in Celsius |
+
+### Precision
+
+| Constant | Description |
+|---|---|
+| `Epsilon` | `float.Epsilon` — smallest positive `float` |
+| `MinValue` | `float.MinValue` |
+| `MaxValue` | `float.MaxValue` |
+| `PositiveInfinity` | `float.PositiveInfinity` |
+| `NegativeInfinity` | `float.NegativeInfinity` |
+| `NaN` | `float.NaN` |
+
+---
+
+## Scalar Functions
+
+All methods below support `float` and `double` scalar overloads. Most also have componentwise vector overloads for `Float2`/`Float3`/`Float4` and `Double2`/`Double3`/`Double4`. Integer overloads are noted where available.
+
+### Interpolation
+
+| Signature | Description |
+|---|---|
+| `Lerp(float a, float b, float t)` | Linearly interpolates from `a` to `b`. `t` is clamped to `[0, 1]`. Formula: `a + (b - a) * saturate(t)`. |
+| `LerpUnclamped(float a, float b, float t)` | Same as `Lerp` but `t` is **not** clamped — allows extrapolation. |
+| `LerpAngle(float a, float b, float t)` | Lerp between two angles (in radians), always taking the shortest arc around the circle. |
+| `SmoothLerp(float a, float b, float t)` | Lerp with a cubic Hermite ease-in/ease-out applied to `t`. Equivalent to `Lerp(a, b, Smoothstep(0, 1, t))`. |
+| `InverseLerp(float a, float b, float value)` | Returns the `t` that produces `value` in a `Lerp(a, b, t)` call. Returns `0` if `a == b`. |
+| `Remap(float value, float inputMin, float inputMax, float outputMin, float outputMax)` | Maps `value` from the input range `[inputMin, inputMax]` to the output range `[outputMin, outputMax]`. |
+| `Smoothstep(float edge0, float edge1, float x)` | Smooth Hermite interpolation: returns `0` when `x ≤ edge0`, `1` when `x ≥ edge1`, and a smooth curve in-between. Uses `t*t*(3 - 2*t)`. |
+| `PingPong(float t, float length)` | Bounces `t` back and forth between `0` and `length`, never exceeding either bound. |
+| `Repeat(float t, float length)` | Wraps `t` within `[0, length)` — similar to `t % length` but always positive. |
+
+### Clamping and Rounding
+
+| Signature | Description |
+|---|---|
+| `Clamp(float x, float min, float max)` | Clamps `x` to `[min, max]`. Also supports `int`, `uint`, `ulong`, `byte`, `ushort`. |
+| `Saturate(float x)` | Shorthand for `Clamp(x, 0, 1)`. |
+| `Floor(float x)` | Largest integer less than or equal to `x`. Returns `float`/`double`. |
+| `FloorToInt(float x)` | `Floor` cast directly to `int`. |
+| `Ceiling(float x)` | Smallest integer greater than or equal to `x`. Returns `float`/`double`. |
+| `CeilToInt(float x)` | `Ceiling` cast directly to `int`. |
+| `Round(float x)` | Rounds to the nearest integer (midpoint rounds to even). Returns `float`/`double`. |
+| `RoundToInt(float x)` | `Round` cast directly to `int`. |
+| `Abs(float x)` | Absolute value. Also supports `int`. |
+| `Sign(float x)` | Returns `−1`, `0`, or `1` based on the sign of `x`. Also supports `int`. |
+| `Min(float x, float y)` | Returns the smaller of two values. Also supports `int`, `uint`, `ulong`, `byte`, `ushort`. |
+| `Max(float x, float y)` | Returns the larger of two values. Also supports `int`, `uint`, `ulong`, `byte`, `ushort`. |
+| `Step(float edge, float x)` | Returns `0` if `x < edge`, otherwise `1`. |
+| `Frac(float x)` | Fractional part of `x`: `x - Floor(x)`. Always in `[0, 1)`. |
+| `FMod(float x, float y)` | Floating-point remainder: `x % y`. |
+| `ModF(float x, out float integerPart)` | Splits `x` into its integer and fractional parts simultaneously. |
+
+### Trigonometric
+
+All trig functions accept `float`/`double` scalars and float/double vector types.
+
+| Signature | Description |
+|---|---|
+| `Sin(float x)` | Sine of `x` (radians). |
+| `Cos(float x)` | Cosine of `x` (radians). |
+| `Tan(float x)` | Tangent of `x` (radians). |
+| `Asin(float x)` | Arc sine — returns value in `[−π/2, π/2]`. |
+| `Acos(float x)` | Arc cosine — returns value in `[0, π]`. |
+| `Atan(float x)` | Arc tangent — returns value in `[−π/2, π/2]`. |
+| `Atan2(float x, float y)` | Two-argument arc tangent. Returns the angle of vector `(x, y)` in `[−π, π]`. |
+| `DeltaAngle(float current, float target)` | Shortest signed angle (in radians) from `current` to `target`, wrapping at ±π. |
+
+### Power and Exponential
+
+| Signature | Description |
+|---|---|
+| `Pow(float x, float y)` | `x` raised to the power of `y`. |
+| `Sqrt(float x)` | Square root of `x`. |
+| `Rsqrt(float x)` | Reciprocal square root: `1 / sqrt(x)`. |
+| `Exp(float x)` | `e` raised to the power of `x`. |
+| `Exp2(float x)` | `2` raised to the power of `x`. |
+| `Log(float x)` | Natural logarithm of `x`. |
+
+### Angle Conversion
+
+| Signature | Description |
+|---|---|
+| `ToDegrees(float radians)` | Converts radians to degrees. |
+| `ToRadians(float degrees)` | Converts degrees to radians. |
+
+Both methods have componentwise overloads for all vector types (`Float2`/`Float3`/`Float4`, `Double2`/`Double3`/`Double4`).
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// --- Lerp, Clamp, and Remap together ---
+
+// Suppose a game object has health in [0, 100].
+// We want to map health to a colour blend factor in [0, 1]
+// and then smoothly interpolate a UI bar width.
+
+float health       = 73.5f;
+float healthNorm   = Maths.InverseLerp(0f, 100f, health);   // ≈ 0.735
+float barWidth     = Maths.Lerp(0f, 400f, healthNorm);      // ≈ 294 px
+float smoothWidth  = Maths.SmoothLerp(0f, 400f, healthNorm);// eased version
+
+// Clamp an input delta so the bar never snaps too fast
+float deltaTime = 0.016f;
+float maxDelta  = 50f;
+float safeDelta = Maths.Clamp(deltaTime * 1000f, 0f, maxDelta); // ≤ 50
+
+// Remap noise output [-1, 1] → [0, 1] for use as a height value
+float rawNoise  = Noise.SNoise(new Float2(3.7f, 1.2f)); // ≈ −0.42
+float height    = Maths.Remap(rawNoise, -1f, 1f, 0f, 1f);  // ≈ 0.29
+
+// Angle interpolation — smoothly rotate from 350° to 10° (crosses 0)
+float fromAngle = Maths.ToRadians(350f);
+float toAngle   = Maths.ToRadians(10f);
+float t         = 0.5f;
+float midAngle  = Maths.LerpAngle(fromAngle, toAngle, t);   // ≈ 0° (correctly wraps)
+```

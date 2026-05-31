@@ -1,0 +1,302 @@
+---
+title: "AABB — Axis-Aligned Bounding Box"
+sidebarTitle: "AABB"
+description: "API reference for AABB: constructors from min/max or center/size, spatial queries (Contains, Intersects, Expand, Encapsulate), and IBoundingShape GJK support."
+---
+
+## Declaration
+
+```csharp
+public struct AABB : IEquatable<AABB>, IFormattable, IBoundingShape
+```
+
+`AABB` (Axis-Aligned Bounding Box) represents a rectangular volume in 3D space whose edges are always parallel to the world axes. It is defined by its minimum and maximum corner points and implements `IBoundingShape` for GJK-based collision detection.
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Min` | `Float3` | The minimum corner of the box (smallest X, Y, Z). |
+| `Max` | `Float3` | The maximum corner of the box (largest X, Y, Z). |
+
+<Note>
+The constructors automatically sort Min and Max — you can pass corners in any order and the AABB will always be valid.
+</Note>
+
+---
+
+## Constructors
+
+### From two `Float3` corners
+
+```csharp
+AABB(Float3 min, Float3 max)
+```
+
+Creates an AABB from a min and a max point. Internally takes the component-wise min/max so the order does not matter.
+
+---
+
+### From six individual components
+
+```csharp
+AABB(float minX, float minY, float minZ, float maxX, float maxY, float maxZ)
+```
+
+Delegates to the two-`Float3` constructor.
+
+---
+
+## Static Factory Methods
+
+### `FromCenterAndSize`
+
+```csharp
+public static AABB FromCenterAndSize(Float3 center, Float3 size)
+```
+
+Creates an AABB centered at `center` with the given `size` (width, height, depth). Internally computes `Min = center - size / 2` and `Max = center + size / 2`.
+
+---
+
+### `FromPoints`
+
+```csharp
+public static AABB FromPoints(Float3[] points)
+```
+
+Returns the smallest AABB that contains all elements of `points`. Returns a zero-size AABB at the origin if `points` is null or empty.
+
+---
+
+### `FromAABBs`
+
+```csharp
+public static AABB FromAABBs(AABB[] aabbs)
+```
+
+Returns the smallest AABB that encapsulates all input AABBs.
+
+---
+
+### `FromSphere`
+
+```csharp
+public static AABB FromSphere(Sphere sphere)
+```
+
+Returns the tightest AABB that fits around the given `sphere`.
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Center` | `Float3` | `(Min + Max) / 2` — the geometric center. |
+| `Size` | `Float3` | `Max - Min` — the full width, height, and depth. |
+| `Extents` | `Float3` | `Size / 2` — the half-extents from the center. |
+| `Volume` | `float` | `Size.X * Size.Y * Size.Z`. |
+| `SurfaceArea` | `float` | `2 * (X*Y + Y*Z + Z*X)`. |
+
+---
+
+## Methods
+
+### `Contains`
+
+```csharp
+public bool Contains(Float3 point)
+public bool Contains(AABB other)
+```
+
+- **`Contains(Float3)`** — returns `true` if the point lies inside or on the boundary (uses a small epsilon tolerance).
+- **`Contains(AABB)`** — returns `true` if `other` is completely inside this AABB (all eight corners).
+
+---
+
+### `Intersects`
+
+```csharp
+public bool Intersects(AABB other)
+public bool Intersects(Sphere sphere)
+```
+
+Returns `true` when the two shapes overlap or touch. Internally delegates to `Intersection.AABBAABBOverlap` and `Intersection.SphereAABBOverlap`.
+
+---
+
+### `ClosestPointTo`
+
+```csharp
+public Float3 ClosestPointTo(Float3 point)
+```
+
+Returns the point on or inside the AABB that is nearest to `point`. If the point is inside the box, it returns `point` itself.
+
+---
+
+### `GetDistanceToPoint` / `GetSqrDistanceToPoint`
+
+```csharp
+public float GetDistanceToPoint(Float3 point)
+public float GetSqrDistanceToPoint(Float3 point)
+```
+
+Returns the Euclidean distance (or its square) from `point` to the surface of the AABB. Returns `0` when the point is inside.
+
+---
+
+### `Expand` / `Expanded`
+
+```csharp
+public void Expand(float amount)
+public void Expand(Float3 expansion)
+
+public AABB Expanded(float amount)
+public AABB Expanded(Float3 expansion)
+```
+
+- **`Expand`** — mutates the AABB, moving `Min` outward by `amount` and `Max` inward by `amount` in each axis.
+- **`Expanded`** — returns a new AABB without mutating the original.
+- Per-axis overloads let you expand different amounts on each axis.
+
+---
+
+### `Encapsulate` / `Encapsulating`
+
+```csharp
+public void Encapsulate(Float3 point)
+public void Encapsulate(AABB other)
+
+public AABB Encapsulating(Float3 point)
+public AABB Encapsulating(AABB other)
+```
+
+Grows the AABB to include the given point or AABB. Mutating variants (`Encapsulate`) modify in place; `Encapsulating` returns a new copy.
+
+---
+
+### `GetCorner` / `GetCorners`
+
+```csharp
+public Float3 GetCorner(int index)   // index 0–7
+public Float3[] GetCorners()
+```
+
+Returns one or all eight corners of the AABB. Corners are ordered from index 0 (Min) to 7 (Max) in binary XYZ order.
+
+---
+
+### `GetFaceNormal` / `GetFaceCenter`
+
+```csharp
+public Float3 GetFaceNormal(int faceIndex)   // 0–5
+public Float3 GetFaceCenter(int faceIndex)   // 0–5
+```
+
+Face indices map to: `0 = −X`, `1 = +X`, `2 = −Y`, `3 = +Y`, `4 = −Z`, `5 = +Z`.
+
+---
+
+### `TransformBy`
+
+```csharp
+public AABB TransformBy(Float4x4 matrix)
+```
+
+Transforms all eight corners by `matrix` and returns the tightest AABB that contains all transformed corners. Handles non-uniform scale and rotation (result is always axis-aligned).
+
+---
+
+### `ClippedBy`
+
+```csharp
+public AABB ClippedBy(AABB other)
+```
+
+Returns the intersection of the two AABBs. If they do not overlap, returns a zero-size AABB at the origin.
+
+---
+
+### `IsValid` / `IsEmpty`
+
+```csharp
+public bool IsValid()
+public bool IsEmpty()
+```
+
+- `IsValid` — returns `true` when `Min ≤ Max` in all axes.
+- `IsEmpty` — returns `true` when the volume is effectively zero.
+
+---
+
+### `SampleVolume`
+
+```csharp
+public Float3 SampleVolume()
+```
+
+Returns a uniformly distributed random point inside the AABB using `RNG.Shared`.
+
+---
+
+### `SupportMap` *(IBoundingShape)*
+
+```csharp
+public Float3 SupportMap(Float3 direction)
+```
+
+Returns the corner of the AABB that is farthest in `direction`. Used by GJK/EPA collision algorithms. Implementation: picks `Max.X` or `Min.X` based on `direction.X ≥ 0`, and similarly for Y and Z.
+
+---
+
+## Operators
+
+| Operator | Description |
+|----------|-------------|
+| `==` | True when `Min` and `Max` are equal. |
+| `!=` | Inverse of `==`. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// Build an AABB from a center point and a size
+AABB box = AABB.FromCenterAndSize(new Float3(0f, 1f, 0f), new Float3(2f, 2f, 2f));
+// Min = (-1, 0, -1), Max = (1, 2, 1)
+
+// Point containment
+bool inside = box.Contains(new Float3(0.5f, 1f, 0.5f)); // true
+
+// Grow to contain new geometry
+AABB otherBox = new AABB(new Float3(0f, 0f, 0f), new Float3(3f, 1f, 3f));
+box.Encapsulate(otherBox);
+Console.WriteLine(box.Size); // ≥ (3, 2, 3)
+
+// Frustum-culling style early rejection
+Sphere boundingSphere = new Sphere(box.Center, Float3.Length(box.Extents));
+if (!box.Intersects(boundingSphere))
+    return; // skip rendering
+
+// GJK support point query
+Float3 support = box.SupportMap(new Float3(1f, 0f, 0f));
+// Returns (Max.X, depends-on-dir Y, depends-on-dir Z)
+
+// Transform with a rotation matrix
+Float4x4 rotation = Float4x4.RotationY(Maths.PI / 4f);
+AABB rotatedAABB = box.TransformBy(rotation);
+```
+
+---
+
+## Notes
+
+- `AABB` is a **struct** — mutations like `Encapsulate` and `Expand` modify the value directly; pass by reference if you need to mutate a field on a class.
+- `Contains` and `Intersects` use a small `float.Epsilon` tolerance on the boundary, so points exactly on the face return `true`.
+- For concave or rotated shapes consider computing an AABB as a loose bounding volume first, then refining with a narrower test.

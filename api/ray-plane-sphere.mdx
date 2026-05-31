@@ -1,0 +1,519 @@
+---
+title: "Ray, Plane, and Sphere — Primitive Shape Types"
+sidebarTitle: "Ray, Plane, Sphere"
+description: "API reference for the Ray, Plane, and Sphere structs — constructors, fields, and spatial query methods for these fundamental geometric primitives."
+---
+
+Three lightweight value types covering the most common geometric primitives. All three implement `IEquatable<T>` and `IFormattable`. `Sphere` additionally implements `IBoundingShape` for GJK support.
+
+---
+
+## Ray
+
+### Declaration
+
+```csharp
+public struct Ray : IEquatable<Ray>, IFormattable
+```
+
+A ray is defined by an **origin** point and a **direction** vector. The direction is automatically normalized on construction.
+
+---
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Origin` | `Float3` | The starting point of the ray. |
+| `Direction` | `Float3` | The normalized direction vector. Always unit length after construction. |
+
+---
+
+### Constructor
+
+```csharp
+Ray(Float3 origin, Float3 direction)
+```
+
+`direction` is normalized internally via `Float3.Normalize`. If `direction` is zero, the result is undefined — ensure you pass a non-zero vector.
+
+---
+
+### Methods
+
+#### `GetPoint`
+
+```csharp
+public Float3 GetPoint(float distance)
+```
+
+Returns the point at distance `t` along the ray: `Origin + Direction * distance`.
+
+---
+
+#### `Intersects(Plane, out float distance)`
+
+```csharp
+public bool Intersects(Plane plane, out float distance)
+```
+
+Tests intersection with a plane. Returns `true` and sets `distance` (the signed distance along the ray to the intersection point) when the ray hits the plane in the forward direction. Delegates to `Intersection.RayPlane`.
+
+---
+
+#### `Intersects(Triangle, out float distance, out float u, out float v)`
+
+```csharp
+public bool Intersects(Triangle triangle, out float distance, out float u, out float v)
+```
+
+Möller–Trumbore ray-triangle intersection. Returns `true` on a hit and outputs:
+
+- `distance` — ray parameter `t` (positive = in front of origin).
+- `u`, `v` — barycentric coordinates of the hit point.
+
+---
+
+#### `Intersects(AABB, out float tMin, out float tMax)`
+
+```csharp
+public bool Intersects(AABB aabb, out float tMin, out float tMax)
+```
+
+Slab method AABB intersection. Returns `true` on a hit. `tMin` is the entry parameter and `tMax` is the exit parameter along the ray.
+
+---
+
+#### `Intersects(Sphere, out float t0, out float t1)`
+
+```csharp
+public bool Intersects(Sphere sphere, out float t0, out float t1)
+```
+
+Analytic sphere intersection. Returns `true` on a hit. `t0 ≤ t1` are the two intersection distances (they are equal when the ray is tangent). Delegates to `Intersection.RaySphere`.
+
+---
+
+### Static Utility Methods
+
+#### `ScreenPointToRay`
+
+```csharp
+public static Ray ScreenPointToRay(
+    Float2 screenPosition,
+    Float4x4 viewMatrix,
+    Float4x4 projectionMatrix,
+    float viewportWidth,
+    float viewportHeight)
+```
+
+Unprojection-based picking ray. Converts a 2D screen pixel coordinate (Y = 0 at top) into a world-space ray originating on the near clip plane. Uses DirectX-style [0, 1] depth range. Returns a fallback ray pointing toward `(0, 0, -1)` from the origin if the view-projection matrix is singular.
+
+---
+
+#### `ScreenPointToRayFromCamera`
+
+```csharp
+public static Ray ScreenPointToRayFromCamera(
+    Float2 screenPosition,
+    Float3 cameraWorldPosition,
+    Float4x4 viewMatrix,
+    Float4x4 projectionMatrix,
+    float viewportWidth,
+    float viewportHeight)
+```
+
+Same as `ScreenPointToRay`, but the ray **origin** is pinned to `cameraWorldPosition` instead of the near plane point. Useful for perspective cameras where rays emanate from a single point.
+
+---
+
+### Operators
+
+| Operator | Description |
+|----------|-------------|
+| `==` | True when `Origin` and `Direction` are equal. |
+| `!=` | Inverse of `==`. |
+
+---
+
+### Example
+
+```csharp
+using Prowl.Vector;
+
+// Create a ray from a mouse click
+Ray pickRay = Ray.ScreenPointToRayFromCamera(
+    mousePos, camera.WorldPosition,
+    camera.ViewMatrix, camera.ProjectionMatrix,
+    1920f, 1080f);
+
+// Test against scene objects
+if (pickRay.Intersects(someAABB, out float tMin, out float tMax))
+{
+    Float3 hitPoint = pickRay.GetPoint(tMin);
+    Console.WriteLine($"Hit at {hitPoint}");
+}
+```
+
+---
+
+## Plane
+
+### Declaration
+
+```csharp
+public struct Plane : IEquatable<Plane>, IFormattable
+```
+
+A plane in 3D space defined by a normalized normal vector and a scalar distance from the origin. The plane equation is: `dot(Normal, point) = D`.
+
+---
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Normal` | `Float3` | The outward-facing unit normal. |
+| `D` | `float` | Distance from the origin to the plane along the normal. |
+
+---
+
+### Constructors
+
+#### From normal and distance
+
+```csharp
+Plane(Float3 normal, float d)
+```
+
+`normal` and `d` are both divided by `Float3.Length(normal)` so that the stored normal is unit length and the plane equation is preserved. Falls back to `Float3.UnitZ` with `D = 0` if the normal is near-zero.
+
+---
+
+#### From three points
+
+```csharp
+Plane(Float3 point1, Float3 point2, Float3 point3)
+```
+
+Computes the normal as `normalize(cross(point2 - point1, point3 - point1))` and sets `D = dot(Normal, point1)`. Points should be in counter-clockwise order for an outward-facing normal.
+
+---
+
+### Static Factory Method
+
+#### `FromNormalAndPoint`
+
+```csharp
+public static Plane FromNormalAndPoint(Float3 normal, Float3 pointOnPlane)
+```
+
+Creates a plane from a normal direction and any point that lies on the plane. Normalizes `normal` and computes `D = dot(normalized, pointOnPlane)`. Bypasses the normalization re-scaling of the primary constructor for performance.
+
+---
+
+### Methods
+
+#### `GetSignedDistanceToPoint`
+
+```csharp
+public float GetSignedDistanceToPoint(Float3 point)
+```
+
+Returns `dot(Normal, point) - D`. Positive if the point is on the same side as the normal, negative if behind the plane, zero if on the plane.
+
+---
+
+#### `GetDistanceToPoint`
+
+```csharp
+public float GetDistanceToPoint(Float3 point)
+```
+
+Returns `Abs(GetSignedDistanceToPoint(point))` — always non-negative.
+
+---
+
+#### `ClosestPointOnPlane`
+
+```csharp
+public Float3 ClosestPointOnPlane(Float3 point)
+```
+
+Projects `point` onto the plane: `point - Normal * signedDistance`.
+
+---
+
+#### `GetSide`
+
+```csharp
+public bool GetSide(Float3 point)
+```
+
+Returns `true` if the point is on the positive (normal-facing) side of the plane.
+
+---
+
+#### `SameSide`
+
+```csharp
+public bool SameSide(Float3 point1, Float3 point2)
+```
+
+Returns `true` if both points are on the same side of the plane.
+
+---
+
+#### `Flip` / `Flipped`
+
+```csharp
+public void Flip()
+public Plane Flipped()
+```
+
+Negates both `Normal` and `D`, reversing the plane orientation. `Flipped()` returns a new copy; `Flip()` mutates in place.
+
+---
+
+#### `Translate` / `Translated`
+
+```csharp
+public void Translate(Float3 translation)
+public Plane Translated(Float3 translation)
+```
+
+Moves the plane along `translation` by updating `D += dot(Normal, translation)`. The normal does not change.
+
+---
+
+### Operators
+
+| Operator | Description |
+|----------|-------------|
+| `==` | True when `Normal` and `D` are equal. |
+| `!=` | Inverse of `==`. |
+
+---
+
+### Example
+
+```csharp
+using Prowl.Vector;
+
+// Ground plane at y = 0
+Plane ground = Plane.FromNormalAndPoint(Float3.UnitY, Float3.Zero);
+
+// Signed distance tells you which side an object is on
+float dist = ground.GetSignedDistanceToPoint(new Float3(0f, 3f, 0f));
+// dist ≈ 3.0  (above ground)
+
+// Project a point onto the plane
+Float3 projected = ground.ClosestPointOnPlane(new Float3(5f, 7f, 2f));
+// projected = (5, 0, 2)
+
+// Classify a ray against the plane
+Ray ray = new Ray(new Float3(0f, 5f, 0f), new Float3(0f, -1f, 0f));
+if (ray.Intersects(ground, out float t))
+{
+    Float3 hitPoint = ray.GetPoint(t); // (0, 0, 0)
+}
+```
+
+---
+
+## Sphere
+
+### Declaration
+
+```csharp
+public struct Sphere : IEquatable<Sphere>, IFormattable, IBoundingShape
+```
+
+A sphere in 3D space defined by a center point and a radius. The radius is clamped to a minimum of `0` on construction.
+
+---
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Center` | `Float3` | The center point of the sphere. |
+| `Radius` | `float` | The radius (always ≥ 0). |
+
+---
+
+### Constructors
+
+```csharp
+Sphere(Float3 center, float radius)
+Sphere(float x, float y, float z, float radius)
+```
+
+Both overloads clamp `radius` to `Maths.Max(radius, 0)`.
+
+---
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Diameter` | `float` | `Radius * 2`. |
+| `SurfaceArea` | `float` | `4π r²`. |
+| `Volume` | `float` | `(4/3)π r³`. |
+| `Circumference` | `float` | `2π r`. |
+
+---
+
+### Static Factory Methods
+
+#### `FromDiameter`
+
+```csharp
+public static Sphere FromDiameter(Float3 pointA, Float3 pointB)
+```
+
+Creates a sphere from two diameter endpoints. Center is the midpoint; radius is half the distance.
+
+---
+
+#### `FromPoints`
+
+```csharp
+public static Sphere FromPoints(Float3[] points)
+```
+
+Returns an approximate bounding sphere using centroid + maximum distance. For up to two points, the result is exact. For more points, uses a centroid-based approximation (not Welzl's minimal-sphere algorithm).
+
+---
+
+### Methods
+
+#### `Contains`
+
+```csharp
+public bool Contains(Float3 point)
+public bool Contains(Sphere other)
+```
+
+- **`Contains(Float3)`** — true if `|point - Center|² ≤ radius² + epsilon`.
+- **`Contains(Sphere)`** — true if `distance(centers) + other.Radius ≤ this.Radius + epsilon`.
+
+---
+
+#### `Intersects`
+
+```csharp
+public bool Intersects(Sphere other)
+public bool Intersects(AABB aabb)
+```
+
+Delegates to `Intersection.SphereSphereOverlap` and `Intersection.SphereAABBOverlap` respectively.
+
+---
+
+#### `GetSignedDistanceToPoint` / `GetDistanceToPoint`
+
+```csharp
+public float GetSignedDistanceToPoint(Float3 point)
+public float GetDistanceToPoint(Float3 point)
+```
+
+- Signed: `|point - Center| - Radius`. Negative inside the sphere.
+- Absolute: `Abs(signedDistance)`.
+
+---
+
+#### `ClosestPointTo`
+
+```csharp
+public Float3 ClosestPointTo(Float3 point)
+```
+
+Returns the closest point on the surface of the sphere to `point`. Delegates to `Intersection.ClosestPointOnSphereToPoint`.
+
+---
+
+#### `Encapsulate` / `Encapsulating`
+
+```csharp
+public void Encapsulate(Float3 point)
+public void Encapsulate(Sphere other)
+
+public Sphere Encapsulating(Float3 point)
+public Sphere Encapsulating(Sphere other)
+```
+
+Grows the sphere to contain the point or other sphere (expanding radius from the current center, not recentering).
+
+---
+
+#### `Transform`
+
+```csharp
+public Sphere Transform(Float4x4 matrix)
+```
+
+Transforms the center by `matrix` and scales the radius by the maximum absolute column length of the upper-left 3×3 submatrix. For non-uniform scale the result is a conservative bounding sphere.
+
+---
+
+#### `SampleSurface` / `SampleVolume`
+
+```csharp
+public Float3 SampleSurface()
+public Float3 SampleVolume()
+```
+
+Returns uniformly distributed random points on the sphere surface or inside the sphere volume respectively. Both use `RNG.Shared`.
+
+---
+
+#### `SupportMap` *(IBoundingShape)*
+
+```csharp
+public Float3 SupportMap(Float3 direction)
+```
+
+Returns `Center + normalize(direction) * Radius` — the point on the sphere farthest in `direction`. Returns `Center` for a zero direction.
+
+---
+
+### Operators
+
+| Operator | Description |
+|----------|-------------|
+| `==` | True when `Center` and `Radius` are equal. |
+| `!=` | Inverse of `==`. |
+
+---
+
+### Example
+
+```csharp
+using Prowl.Vector;
+
+Sphere s = new Sphere(new Float3(0f, 0f, 0f), 5f);
+
+// Containment
+bool inside = s.Contains(new Float3(3f, 0f, 0f));   // true
+bool outside = s.Contains(new Float3(6f, 0f, 0f));  // false
+
+// Sphere–sphere intersection
+Sphere s2 = new Sphere(new Float3(8f, 0f, 0f), 4f);
+bool overlap = s.Intersects(s2); // true (5 + 4 = 9 > 8)
+
+// Closest point on surface
+Float3 closest = s.ClosestPointTo(new Float3(10f, 0f, 0f));
+// closest = (5, 0, 0)
+
+// Ray intersection
+Ray ray = new Ray(new Float3(-10f, 0f, 0f), new Float3(1f, 0f, 0f));
+if (ray.Intersects(s, out float t0, out float t1))
+{
+    Float3 entry = ray.GetPoint(t0); // (-5, 0, 0)
+    Float3 exit  = ray.GetPoint(t1); //  (5, 0, 0)
+}
+
+// Random point on surface for scatter effects
+Float3 scatter = s.SampleSurface();
+```

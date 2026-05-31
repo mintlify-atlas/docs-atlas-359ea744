@@ -1,0 +1,286 @@
+---
+title: "Matrix Types: Double4x4, Float4x4, and Smaller Matrices"
+sidebarTitle: "Matrices"
+description: "Guide to Double4x4, Float4x4, Double3x3, Float3x3, Double2x2, and Float2x2 — TRS creation, view/projection matrices, inversion, and transforms."
+---
+
+Prowl.Vector ships six matrix types, covering both double and float precision at three sizes. **4×4 matrices** (`Double4x4`, `Float4x4`) are the workhorses of 3D rendering and physics — they represent the full affine and projective transforms needed to place objects in a scene and project them onto a screen. **3×3 matrices** (`Double3x3`, `Float3x3`) are used for pure rotation and scale without a translation component, and for transforming normal vectors. **2×2 matrices** (`Double2x2`, `Float2x2`) handle 2D transformations. All six types are serializable column-major value structs in the `Prowl.Vector` namespace.
+
+---
+
+## Type Overview
+
+| Type         | Precision | Primary Use Case                                     |
+|--------------|-----------|------------------------------------------------------|
+| `Double4x4`  | `double`  | Full 3D TRS, view/projection, high-precision physics |
+| `Float4x4`   | `float`   | Real-time rendering TRS, GPU-ready transforms        |
+| `Double3x3`  | `double`  | Rotation-only, normal transforms, 2D homogeneous     |
+| `Float3x3`   | `float`   | Rotation-only, normal transforms, 2D homogeneous     |
+| `Double2x2`  | `double`  | 2D linear transforms                                 |
+| `Float2x2`   | `float`   | 2D linear transforms                                 |
+
+---
+
+## Creating Transformation Matrices
+
+### Translation
+
+```csharp
+// Double4x4
+Double4x4 t = Double4x4.CreateTranslation(new Double3(10.0, 5.0, -3.0));
+
+// Float4x4
+Float4x4 tf = Float4x4.CreateTranslation(new Float3(10f, 5f, -3f));
+```
+
+### Scale
+
+```csharp
+// Uniform scale
+Double4x4 su = Double4x4.CreateScale(2.0);
+
+// Non-uniform scale from individual values
+Double4x4 sn = Double4x4.CreateScale(1.0, 2.0, 3.0);
+
+// Non-uniform scale from a vector
+Double4x4 sv = Double4x4.CreateScale(new Double3(1.0, 2.0, 3.0));
+```
+
+### Axis-Aligned Rotation
+
+```csharp
+double angle = Maths.PI / 4.0; // 45° in radians
+
+Double4x4 rx = Double4x4.RotateX(angle);
+Double4x4 ry = Double4x4.RotateY(angle);
+Double4x4 rz = Double4x4.RotateZ(angle);
+
+// Arbitrary axis-angle rotation
+Double4x4 ra = Double4x4.FromAxisAngle(Double3.UnitY, angle);
+```
+
+### TRS (Translation–Rotation–Scale)
+
+`CreateTRS` composes all three into a single matrix, applying scale first, then rotation, then translation — the standard object-to-world convention.
+
+```csharp
+// Double4x4 TRS
+Double4x4 trs = Double4x4.CreateTRS(
+    translation: new Double3(5.0, 0.0, 0.0),
+    rotation:    Quaternion.FromEuler(new Float3(0f, 45f, 0f)),
+    scale:       new Double3(1.0, 1.0, 1.0)
+);
+
+// Float4x4 TRS (same API)
+Float4x4 trsf = Float4x4.CreateTRS(
+    new Float3(5f, 0f, 0f),
+    Quaternion.FromEuler(new Float3(0f, 45f, 0f)),
+    new Float3(1f, 1f, 1f)
+);
+```
+
+### From Quaternion
+
+```csharp
+Quaternion q = Quaternion.FromEuler(new Float3(30f, 60f, 0f));
+
+Double4x4 rotMat  = Double4x4.CreateFromQuaternion(q);
+Float4x4  rotMatF = Float4x4.CreateFromQuaternion(q);
+```
+
+---
+
+## View and Projection Matrices
+
+All view and projection helpers produce **left-handed** matrices with a depth range of **[0, 1]**, matching the DirectX / Vulkan / Metal convention used by Prowl Engine's renderer.
+
+### LookAt (View Matrix)
+
+```csharp
+Double3 eye    = new Double3(0.0, 5.0, -10.0);
+Double3 target = new Double3(0.0, 0.0,   0.0);
+Double3 up     = Double3.UnitY;
+
+Double4x4 view = Double4x4.CreateLookAt(eye, target, up);
+
+// Alternatively, supply a forward direction instead of a target point
+Double4x4 viewTo = Double4x4.CreateLookTo(eye, forwardVector: Double3.UnitZ, up);
+```
+
+### Perspective Projection
+
+```csharp
+double fovY        = Maths.PI / 3.0; // 60° vertical FoV
+double aspectRatio = 16.0 / 9.0;
+double nearPlane   = 0.1;
+double farPlane    = 1000.0;
+
+Double4x4 proj = Double4x4.CreatePerspectiveFov(fovY, aspectRatio, nearPlane, farPlane);
+```
+
+<Tip>
+Pass `double.PositiveInfinity` as `farPlane` to get a reversed-infinite projection, which improves depth-buffer precision at large distances.
+</Tip>
+
+### Orthographic Projection
+
+```csharp
+// Centered orthographic projection
+Double4x4 ortho = Double4x4.CreateOrtho(
+    width:     20.0,
+    height:    11.25,
+    nearPlane: -100.0,
+    farPlane:  100.0
+);
+
+// Off-center orthographic projection (UI, shadow maps, etc.)
+Double4x4 orthoOC = Double4x4.CreateOrthoOffCenter(
+    left:      0.0,
+    right:     1920.0,
+    bottom:    0.0,
+    top:       1080.0,
+    nearPlane: -1.0,
+    farPlane:  1.0
+);
+```
+
+---
+
+## Matrix Arithmetic
+
+### Multiplication
+
+Matrix multiplication combines transforms. The result `A * B` applies `B` first, then `A` (column-vector convention).
+
+```csharp
+Double4x4 T = Double4x4.CreateTranslation(new Double3(1, 2, 3));
+Double4x4 R = Double4x4.RotateY(Maths.PI / 4.0);
+Double4x4 S = Double4x4.CreateScale(2.0);
+
+// Apply scale → rotate → translate
+Double4x4 trs = T * (R * S);
+
+// Matrix-vector multiplication
+Double4 col = new Double4(1.0, 0.0, 0.0, 1.0);
+Double4 result = trs * col;
+```
+
+### Transpose
+
+```csharp
+Double4x4 transposed = Double4x4.Transpose(trs);
+Double3x3 transposed3 = Double3x3.Transpose(new Double3x3(trs));
+```
+
+### Determinant
+
+```csharp
+double det = Double4x4.Determinant(trs);
+```
+
+### Invert / Inverse
+
+```csharp
+// Instance method — returns inverted matrix; fills with NaN if not invertible
+Double4x4 inv = trs.Invert();
+
+// Static out-param version — also returns a success bool
+if (Double4x4.Invert(trs, out Double4x4 safe))
+{
+    // Use safe
+}
+
+// Same API on Double3x3
+Double3x3 m3 = new Double3x3(trs);
+Double3x3 inv3 = m3.Invert();
+```
+
+<Tip>
+When `Invert` fails (zero determinant), the resulting matrix has `NaN` in all elements. Always check the `bool` return value of the static `Invert` overload in production code.
+</Tip>
+
+---
+
+## Transforming Points and Normals
+
+### TransformPoint
+
+Transforms a 3D point as homogeneous coordinates `(x, y, z, 1)` and performs a perspective divide — correct for rendering and full projective transforms.
+
+```csharp
+Double3 worldPoint = new Double3(1.0, 2.0, 3.0);
+Double3 clipPoint  = Double4x4.TransformPoint(worldPoint, projMatrix);
+
+// 4D version — no perspective divide
+Double4 homogeneous = new Double4(1.0, 2.0, 3.0, 1.0);
+Double4 transformed = Double4x4.TransformPoint(homogeneous, projMatrix);
+```
+
+### TransformNormal
+
+Surface normals must be transformed by the **inverse transpose** to remain perpendicular to the surface after non-uniform scaling. `TransformNormal` handles this automatically, normalizing the result.
+
+```csharp
+Double3 worldNormal     = Double3.UnitY;
+Double3 transformedNorm = Double4x4.TransformNormal(worldNormal, modelMatrix);
+```
+
+---
+
+## Identity and Zero
+
+```csharp
+// Pre-built static readonly fields
+Double4x4 id   = Double4x4.Identity;  // diagonal = 1
+Double4x4 zero = Double4x4.Zero;      // all = 0
+
+Float4x4 fId   = Float4x4.Identity;
+
+Double3x3 id3  = Double3x3.Identity;
+Double3x3 z3   = Double3x3.Zero;
+```
+
+---
+
+## Column Layout and Indexer Access
+
+All matrices are stored in **column-major** order. The public fields `c0`, `c1`, `c2`, `c3` are the column vectors.
+
+```csharp
+Double4x4 m = Double4x4.Identity;
+
+// Column access — returns a reference
+ref Double4 col0 = ref m[0]; // same as m.c0
+
+// Element access — [row, column]
+double val = m[1, 2];   // row 1, column 2
+m[0, 3] = 5.0;          // set translation X
+
+// Row accessors (returned by value, not by reference)
+Double4 row0 = m.GetRow0();
+m.SetRow0(new Double4(1, 0, 0, 0));
+
+// Translation shortcut property
+m.Translation = new Double4(1.0, 2.0, 3.0, 1.0);
+```
+
+<Tip>
+Because matrices are column-major, iterating over `c0`, `c1`, `c2`, `c3` is cache-friendly. Avoid calling `GetRow` in tight loops — read from the column vectors directly instead.
+</Tip>
+
+### Constructing from Double3x3 + Translation
+
+`Double4x4` and `Float4x4` have constructors that accept a rotation matrix and a translation vector directly, making it convenient to build a transform from separately-computed parts:
+
+```csharp
+Double3x3 rot   = Double3x3.FromQuaternion(Quaternion.Identity);
+Double3   trans = new Double3(1.0, 2.0, 3.0);
+
+Double4x4 combined = new Double4x4(rot, trans);
+```
+
+### Serialization and Array Conversion
+
+```csharp
+double[] flat = trs.ToArray(); // 16-element row-major array
+```

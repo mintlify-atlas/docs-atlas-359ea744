@@ -1,0 +1,460 @@
+---
+title: "Float4x4 — 4×4 Single-Precision Matrix"
+sidebarTitle: "Float4x4"
+description: "API reference for Float4x4: constructors, column fields, static factory methods for TRS/view/projection transforms, System.Numerics interop, and matrix arithmetic."
+---
+
+`Float4x4` is a 4×4 single-precision floating-point matrix in the `Prowl.Vector` namespace. It uses **column-major storage** — each of the four column fields (`c0`–`c3`) is a `Float4`. The struct is marked `[Serializable]` and is the primary type for GPU-bound transform pipelines. It provides implicit bidirectional conversion with `System.Numerics.Matrix4x4`.
+
+## Declaration
+
+```csharp
+[System.Serializable]
+public partial struct Float4x4 : System.IEquatable<Float4x4>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `c0` | `Float4` | Column 0 — X-axis basis vector (and `m00, m10, m20, m30`). |
+| `c1` | `Float4` | Column 1 — Y-axis basis vector (and `m01, m11, m21, m31`). |
+| `c2` | `Float4` | Column 2 — Z-axis basis vector (and `m02, m12, m22, m32`). |
+| `c3` | `Float4` | Column 3 — translation / homogeneous column (and `m03, m13, m23, m33`). |
+
+Because storage is column-major, `this[row, col]` is equivalent to `this[col][row]`.
+
+---
+
+## Static Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Float4x4.Identity` | Diagonal `(1, 1, 1, 1)` | The multiplicative identity — no transform. |
+| `Float4x4.Zero` | All zeros | A zeroed matrix. |
+
+```csharp
+Float4x4 m = Float4x4.Identity;
+```
+
+---
+
+## Constructors
+
+### From four column vectors
+
+```csharp
+public Float4x4(Float4 col0, Float4 col1, Float4 col2, Float4 col3)
+```
+
+Constructs directly from four pre-built column vectors.
+
+---
+
+### From sixteen scalar values (row-major argument order)
+
+```csharp
+public Float4x4(
+    float m00, float m01, float m02, float m03,
+    float m10, float m11, float m12, float m13,
+    float m20, float m21, float m22, float m23,
+    float m30, float m31, float m32, float m33)
+```
+
+Arguments are supplied in **row-major** reading order (`m{row}{col}`), but stored column-major internally.
+
+---
+
+### Broadcast scalar
+
+```csharp
+public Float4x4(float v)
+```
+
+Sets every element of every column to `v`.
+
+---
+
+### Narrowing from Double4x4
+
+```csharp
+public Float4x4(Double4x4 m)
+```
+
+Narrows each `double` column to `float`. An explicit cast `(Float4x4)double4x4` is also available.
+
+---
+
+### From rotation matrix + translation
+
+```csharp
+public Float4x4(Float3x3 rotation, Float3 translation)
+```
+
+Embeds a `Float3x3` rotation into the upper-left 3×3 and places `translation` in column 3, with the bottom row `(0, 0, 0, 1)`.
+
+---
+
+### From quaternion + translation
+
+```csharp
+public Float4x4(Quaternion rotation, Float3 translation)
+```
+
+Converts `rotation` to a `Float3x3` internally, then constructs as above.
+
+---
+
+## Properties
+
+### Translation
+
+```csharp
+public Float4 Translation { get; set; }
+```
+
+Aliases column `c3`. Getting or setting `Translation` reads or writes `c3` directly.
+
+---
+
+### Column indexer
+
+```csharp
+public ref Float4 this[int index]   // index in [0, 3]
+```
+
+Returns a **by-reference** pointer to the column for in-place mutation. Throws `ArgumentOutOfRangeException` for out-of-range indices.
+
+---
+
+### Element indexer
+
+```csharp
+public float this[int row, int column] { get; set; }   // row, column each in [0, 3]
+```
+
+Gets or sets individual scalar elements. Resolves to `this[column][row]`.
+
+---
+
+## Instance Methods
+
+### Row accessors
+
+```csharp
+public Float4 GetRow0();
+public Float4 GetRow1();
+public Float4 GetRow2();
+public Float4 GetRow3();
+
+public void SetRow0(Float4 value);
+public void SetRow1(Float4 value);
+public void SetRow2(Float4 value);
+public void SetRow3(Float4 value);
+```
+
+Read or write a full row across all four columns.
+
+---
+
+### Invert (instance)
+
+```csharp
+public Float4x4 Invert()
+```
+
+Convenience wrapper around the static overload. Returns the inverted matrix, or a `NaN`-filled matrix if singular.
+
+---
+
+## Static Factory Methods
+
+### CreateTranslation
+
+```csharp
+public static Float4x4 CreateTranslation(Float3 vector)
+```
+
+Returns a pure translation matrix — identity with `vector` placed in column 3.
+
+---
+
+### CreateScale
+
+```csharp
+public static Float4x4 CreateScale(float s)
+public static Float4x4 CreateScale(float x, float y, float z)
+public static Float4x4 CreateScale(Float3 scales)
+```
+
+Returns a diagonal scale matrix. The uniform overload places `s` on the first three diagonal entries; the non-uniform overloads accept per-axis values.
+
+---
+
+### RotateX / RotateY / RotateZ
+
+```csharp
+public static Float4x4 RotateX(float angle)
+public static Float4x4 RotateY(float angle)
+public static Float4x4 RotateZ(float angle)
+```
+
+Returns a 4×4 rotation matrix for a rotation around the respective world axis. `angle` is in **radians**. Delegates to `Float3x3.RotateX/Y/Z` and embeds the result.
+
+---
+
+### FromAxisAngle
+
+```csharp
+public static Float4x4 FromAxisAngle(Float3 axis, float angle)
+```
+
+Returns a 4×4 rotation matrix for an arbitrary normalized `axis` by `angle` radians (Rodrigues' formula, delegated to `Float3x3.FromAxisAngle`).
+
+---
+
+### CreateFromQuaternion
+
+```csharp
+public static Float4x4 CreateFromQuaternion(Quaternion quaternion)
+```
+
+Converts a unit quaternion to the equivalent 4×4 rotation matrix using the standard half-angle expansion.
+
+---
+
+### CreateTRS
+
+```csharp
+public static Float4x4 CreateTRS(Float3 translation, Quaternion rotation, Float3 scale)
+```
+
+Combines scale, rotation, and translation into a single transform matrix. Applied in order: **scale → rotate → translate** (column-vector convention: `T * R * S`).
+
+---
+
+### CreateLookAt
+
+```csharp
+public static Float4x4 CreateLookAt(
+    Float3 eyePosition,
+    Float3 targetPosition,
+    Float3 upVector)
+```
+
+Returns a **left-handed** view matrix. Computes `forward = normalize(target − eye)`, derives orthonormal `right` and `up` axes, and builds the view transform.
+
+---
+
+### CreateLookTo
+
+```csharp
+public static Float4x4 CreateLookTo(
+    Float3 eyePosition,
+    Float3 forwardVector,
+    Float3 upVector)
+```
+
+Like `CreateLookAt` but takes a pre-computed forward direction. Implemented as `CreateLookAt(eye, eye + forward, up)`.
+
+---
+
+### CreatePerspectiveFov
+
+```csharp
+public static Float4x4 CreatePerspectiveFov(
+    float verticalFovRadians,
+    float aspectRatio,
+    float nearPlane,
+    float farPlane)
+```
+
+Creates a **left-handed** perspective projection matrix mapping depth to `[0, 1]` (DirectX convention). Throws `ArgumentOutOfRangeException` if:
+- `verticalFovRadians` is not in `(0, π)`
+- `nearPlane` or `farPlane` ≤ 0
+- `nearPlane ≥ farPlane`
+
+Pass `float.PositiveInfinity` for `farPlane` for an infinite-far-plane projection.
+
+---
+
+### CreateOrtho
+
+```csharp
+public static Float4x4 CreateOrtho(
+    float width,
+    float height,
+    float nearPlane,
+    float farPlane)
+```
+
+Creates a **left-handed** centred orthographic projection mapping depth to `[0, 1]`.
+
+---
+
+### CreateOrthoOffCenter
+
+```csharp
+public static Float4x4 CreateOrthoOffCenter(
+    float left, float right,
+    float bottom, float top,
+    float nearPlane, float farPlane)
+```
+
+Off-centre orthographic projection, based on the DirectX `XMMatrixOrthographicOffCenterLH` formula.
+
+---
+
+### Transpose
+
+```csharp
+public static Float4x4 Transpose(Float4x4 m)
+```
+
+Returns the transpose — rows and columns are swapped.
+
+---
+
+### Determinant
+
+```csharp
+public static float Determinant(Float4x4 m)
+```
+
+Computes the scalar determinant via cofactor expansion along the first row.
+
+---
+
+### Invert (static)
+
+```csharp
+public static bool Invert(Float4x4 matrix, out Float4x4 result)
+```
+
+Attempts to compute the inverse using the adjugate/determinant method. Returns `true` on success. If `|det| < float.Epsilon`, writes a `NaN`-filled matrix and returns `false`.
+
+---
+
+### TransformPoint
+
+```csharp
+// 3-D point (homogeneous w = 1, perspective divide applied)
+public static Float3 TransformPoint(Float3 point, Float4x4 matrix)
+
+// 4-D point (direct multiply)
+public static Float4 TransformPoint(Float4 point, Float4x4 matrix)
+```
+
+Transforms a position. The `Float3` overload promotes to `(x, y, z, 1)`, multiplies, then divides by `w`. If `|w| ≤ float.Epsilon`, the divide is skipped.
+
+---
+
+### TransformNormal
+
+```csharp
+public static Float3 TransformNormal(Float3 normal, Float4x4 matrix)
+```
+
+Transforms a surface normal correctly under non-uniform scale. Extracts the upper-left 3×3 and delegates to `Float3x3.TransformNormal` (inverse-transpose + normalise).
+
+---
+
+## Operators
+
+| Operator | Signature | Notes |
+|----------|-----------|-------|
+| `*` | `Float4x4 * Float4x4 → Float4x4` | Matrix product. `A * B` applies B first, then A (column-vector convention). |
+| `*` | `Float4x4 * Float4 → Float4` | Matrix–vector product. |
+| `==` | `Float4x4 == Float4x4 → bool` | Component-wise equality via `Float4.==`. |
+| `!=` | `Float4x4 != Float4x4 → bool` | Logical negation of `==`. |
+
+### Casts
+
+```csharp
+// System.Numerics interop (implicit, bidirectional)
+implicit operator System.Numerics.Matrix4x4(Float4x4 m)
+implicit operator Float4x4(System.Numerics.Matrix4x4 m)
+
+// Precision conversion
+explicit operator Float4x4(Double4x4 m)    // narrowing: double → float
+explicit operator Double4x4(Float4x4 m)    // widening (on Double4x4 side)
+```
+
+The `System.Numerics.Matrix4x4` conversions are **implicit**, enabling zero-friction interoperability with `System.Numerics` and libraries built on it.
+
+---
+
+## Additional Methods
+
+### ToArray
+
+```csharp
+public float[] ToArray()
+```
+
+Returns a flat `float[16]` in row-major order (`[row * 4 + col]`).
+
+---
+
+### ToString
+
+```csharp
+public override string ToString()
+public string ToString(string format)
+public string ToString(string format, IFormatProvider formatProvider)
+```
+
+Formats all 16 components grouped by row, e.g. `Float4x4(1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, 0, 1)`.
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// 1. Build a TRS matrix for a scene object
+var position = new Float3(5.0f, 0.0f, 10.0f);
+var rotation = Quaternion.CreateFromYawPitchRoll(0.5f, 0.0f, 0.0f);
+var scale    = new Float3(1.0f, 2.0f, 1.0f);
+
+Float4x4 model = Float4x4.CreateTRS(position, rotation, scale);
+
+// 2. View matrix (camera 20 units back, looking at origin)
+Float4x4 view = Float4x4.CreateLookAt(
+    eyePosition:    new Float3(0f, 5f, -20f),
+    targetPosition: Float3.Zero,
+    upVector:       Float3.UnitY);
+
+// 3. Perspective projection (60° FOV, 16:9)
+Float4x4 proj = Float4x4.CreatePerspectiveFov(
+    verticalFovRadians: MathF.PI / 3.0f,
+    aspectRatio:        16.0f / 9.0f,
+    nearPlane:          0.1f,
+    farPlane:           1000.0f);
+
+// 4. Model-View-Projection
+Float4x4 mvp = proj * view * model;
+
+// 5. Transform a world position into clip space
+Float3 clipPos = Float4x4.TransformPoint(position, mvp);
+
+// 6. Correct normal transform under non-uniform scale
+Float3 normal        = Float3.UnitY;
+Float3 worldNormal   = Float4x4.TransformNormal(normal, model);
+
+// 7. Invert model matrix
+if (Float4x4.Invert(model, out Float4x4 invModel))
+{
+    // use invModel for skinning, shadow volumes, etc.
+}
+
+// 8. System.Numerics implicit interop
+System.Numerics.Matrix4x4 numericsMatrix = mvp;  // implicit cast
+Float4x4 backAgain = numericsMatrix;              // implicit cast
+
+// 9. Widen to Double4x4 for high-precision post-processing
+Double4x4 dMvp = (Double4x4)mvp;
+```

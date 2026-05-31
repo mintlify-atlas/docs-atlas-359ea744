@@ -1,0 +1,212 @@
+---
+title: "Double3 — 3D Double-Precision Vector"
+sidebarTitle: "Double3"
+description: "API reference for Double3: constructors, fields, static constants, arithmetic operators, and static methods including Dot, Cross, Normalize, Lerp, and Slerp."
+---
+
+`Double3` is a 3-component vector backed by `double`-precision (64-bit) floating-point values. It is defined in the `Prowl.Vector` namespace and marked `[Serializable]`, making it suitable for serialization workflows throughout the Prowl Engine.
+
+## Declaration
+
+```csharp
+[Serializable]
+public partial struct Double3 : IEquatable<Double3>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `X` | `double` | The X component. |
+| `Y` | `double` | The Y component. |
+| `Z` | `double` | The Z component. |
+
+---
+
+## Static Constants
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `Zero` | `(0, 0, 0)` | The zero vector. |
+| `One` | `(1, 1, 1)` | A vector with all components set to one. |
+| `UnitX` | `(1, 0, 0)` | The unit vector along the X-axis. |
+| `UnitY` | `(0, 1, 0)` | The unit vector along the Y-axis. |
+| `UnitZ` | `(0, 0, 1)` | The unit vector along the Z-axis. |
+
+---
+
+## Constructors
+
+| Signature | Description |
+|-----------|-------------|
+| `Double3(double scalar)` | Sets all three components to `scalar`. |
+| `Double3(double x, double y, double z)` | Sets `X`, `Y`, and `Z` individually. |
+| `Double3(Double3 v)` | Copy constructor. |
+| `Double3(double[] array)` | Reads components from a `double[]` of at least length 3. |
+| `Double3(IEnumerable<double> values)` | Reads components from an enumerable of at least 3 elements. |
+| `Double3(ReadOnlySpan<double> span)` | Reads components from a read-only span of at least length 3. |
+| `Double3(Span<double> span)` | Reads components from a span of at least length 3. |
+| `Double3(Double2 xy, double z)` | Constructs from a `Double2` for XY and a separate `z`. |
+| `Double3(double x, Double2 yz)` | Constructs from a separate `x` and a `Double2` for YZ. |
+| `Double3(Float3 v)` | Widens a `Float3` to double precision (implicit cast). |
+| `Double3(Int3 v)` | Converts an `Int3` to double precision (explicit cast). |
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `this[int index]` | `double` | Gets or sets a component by index. `0` → `X`, `1` → `Y`, `2` → `Z`. Throws `IndexOutOfRangeException` for any other value. |
+
+---
+
+## Operators
+
+### Arithmetic — vector × vector (component-wise)
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Double3 + Double3` | Component-wise addition. |
+| `-` | `Double3 - Double3` | Component-wise subtraction. |
+| `*` | `Double3 * Double3` | Component-wise multiplication. |
+| `/` | `Double3 / Double3` | Component-wise division. |
+| `%` | `Double3 % Double3` | Component-wise remainder. |
+
+### Arithmetic — vector × scalar
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Double3 + double` / `double + Double3` | Adds scalar to each component. |
+| `-` | `Double3 - double` / `double - Double3` | Subtracts scalar from each component (or vice-versa). |
+| `*` | `Double3 * double` / `double * Double3` | Scales each component. |
+| `/` | `Double3 / double` / `double / Double3` | Divides each component by scalar (or divides scalar by each component). |
+| `%` | `Double3 % double` / `double % Double3` | Remainder with scalar. |
+
+### Unary & comparison
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| Unary `-` | `-Double3` | Negates all three components. |
+| `==` | `Double3 == Double3` | Component-wise equality. |
+| `!=` | `Double3 != Double3` | Component-wise inequality. |
+
+### Casts
+
+| Conversion | Kind | Description |
+|------------|------|-------------|
+| `Float3` → `Double3` | `implicit` | Widens single-precision to double-precision. |
+| `Int3` → `Double3` | `explicit` | Converts integer components to `double`. |
+| `Double2` → `Double3` | `explicit` | Extends to 3D with `Z = 0`. |
+| `Double3` → `Double2` | `explicit` | Drops the `Z` component. |
+
+---
+
+## Static Methods
+
+### Geometric
+
+| Signature | Description |
+|-----------|-------------|
+| `static double Dot(Double3 x, Double3 y)` | Returns the dot product `x.X*y.X + x.Y*y.Y + x.Z*y.Z`. |
+| `static Double3 Cross(Double3 x, Double3 y)` | Returns the cross product of two 3D vectors (a vector perpendicular to both). |
+| `static double Length(Double3 v)` | Returns the Euclidean length (magnitude) of `v`. |
+| `static double LengthSquared(Double3 v)` | Returns the squared length; cheaper than `Length` when only comparison is needed. |
+| `static Double3 Normalize(Double3 v)` | Returns a unit-length copy of `v`, or `Zero` if the vector is near-zero. |
+| `static double Distance(Double3 x, Double3 y)` | Returns the Euclidean distance between `x` and `y`. |
+| `static double DistanceSquared(Double3 x, Double3 y)` | Returns the squared distance between `x` and `y`. |
+| `static double AngleBetween(Double3 a, Double3 b)` | Returns the angle in **radians** between two vectors. |
+| `static double SignedAngleBetween(Double3 a, Double3 b, Double3 axis)` | Returns the signed angle in **radians** around `axis`, following the right-hand rule. |
+| `static bool IsParallel(Double3 a, Double3 b, double tolerance = 1e-15)` | Returns `true` if the two vectors point in the same or opposite directions within the given tolerance. |
+| `static bool IsPerpendicular(Double3 a, Double3 b, double tolerance = 1e-15)` | Returns `true` if the dot product is within `tolerance` of zero. |
+
+### Orthonormalization
+
+| Signature | Description |
+|-----------|-------------|
+| `static void OrthoNormalize(ref Double3 normal, ref Double3 tangent)` | Orthonormalizes `normal` and `tangent` using the Gram–Schmidt process. |
+| `static void OrthoNormalize(ref Double3 normal, ref Double3 tangent, ref Double3 binormal)` | Orthonormalizes a full TBN (tangent, bitangent, normal) frame. |
+
+### Interpolation
+
+| Signature | Description |
+|-----------|-------------|
+| `static Double3 Slerp(Double3 a, Double3 b, double t)` | Spherically interpolates between `a` and `b`; `t` is clamped to `[0, 1]`. |
+| `static Double3 SlerpUnclamped(Double3 a, Double3 b, double t)` | Spherical interpolation without clamping `t`. |
+| `static Double3 MoveTowards(Double3 current, Double3 target, double maxDistanceDelta)` | Moves `current` toward `target` by at most `maxDistanceDelta`. |
+
+### Projection & Reflection
+
+| Signature | Description |
+|-----------|-------------|
+| `static Double3 Project(Double3 a, Double3 b)` | Projects vector `a` onto vector `b`. |
+| `static Double3 ProjectOntoPlane(Double3 vector, Double3 planeNormal)` | Removes the component of `vector` along `planeNormal`. |
+| `static Double3 Reflect(Double3 vector, Double3 normal)` | Reflects `vector` off the surface defined by `normal`. |
+| `static Double3 Refract(Double3 incident, Double3 normal, double eta)` | Computes the refraction direction given an index-of-refraction ratio `eta`. Returns `(0, 0, 0)` on total internal reflection. |
+
+---
+
+## Swizzles
+
+`Double3` exposes the full set of GLSL-style swizzle properties for all 2- and 3-component permutations (auto-generated). Read-write swizzles reassign the underlying components; read-only swizzles (where the same component appears more than once) are computed getters.
+
+**Examples:**
+
+```csharp
+Double3 v = new Double3(1.0, 2.0, 3.0);
+
+Double2 xy  = v.XY;   // (1.0, 2.0) — get/set
+Double2 zx  = v.ZX;   // (3.0, 1.0) — get/set
+Double3 zyx = v.ZYX;  // (3.0, 2.0, 1.0) — get/set
+Double3 xxx = v.XXX;  // (1.0, 1.0, 1.0) — get only
+
+// Setting a swizzle writes back to the source vector
+v.YZ = new Double2(10.0, 20.0);  // v is now (1.0, 10.0, 20.0)
+```
+
+---
+
+## Instance Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `double[] ToArray()` | Returns `[X, Y, Z]` as a new array. |
+| `string ToString()` | Formats as `(X, Y, Z)` using the current culture. |
+| `string ToString(string format)` | Formats each component with the given numeric format string. |
+| `string ToString(string format, IFormatProvider formatProvider)` | Fully customizable format output. |
+| `bool Equals(Double3 other)` | Component-wise equality. |
+| `int GetHashCode()` | Combined hash of all three components. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// Build orthonormal camera basis from a look-at direction and world-up
+Double3 forward = Double3.Normalize(new Double3(0.5, -0.3, 1.0));
+Double3 worldUp = Double3.UnitY;
+
+Double3 right = Double3.Normalize(Double3.Cross(forward, worldUp));
+Double3 up    = Double3.Cross(right, forward);
+
+Console.WriteLine($"Forward : {forward}");
+Console.WriteLine($"Right   : {right}");
+Console.WriteLine($"Up      : {up}");
+
+// Spherically interpolate between two directions
+Double3 start = Double3.UnitX;
+Double3 end   = Double3.UnitZ;
+Double3 mid   = Double3.Slerp(start, end, 0.5);  // ≈ (0.707, 0, 0.707)
+
+// Reflect a ray off a plane normal
+Double3 incident = new Double3(1.0, -1.0, 0.0);
+Double3 normal   = Double3.UnitY;
+Double3 reflected = Double3.Reflect(incident, normal);  // (1.0, 1.0, 0.0)
+
+Console.WriteLine($"Slerp mid : {mid}");
+Console.WriteLine($"Reflected : {reflected}");
+```

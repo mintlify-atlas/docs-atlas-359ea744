@@ -1,0 +1,205 @@
+---
+title: "Double4 — 4D Double-Precision Vector"
+sidebarTitle: "Double4"
+description: "API reference for Double4: constructors, fields, static constants, arithmetic operators, and static methods including Dot, Normalize, Slerp, Reflect, and Refract."
+---
+
+`Double4` is a 4-component vector backed by `double`-precision (64-bit) floating-point values. It is defined in the `Prowl.Vector` namespace and marked `[Serializable]`, making it suitable for serialization workflows throughout the Prowl Engine. It is commonly used to represent homogeneous coordinates or RGBA color values.
+
+## Declaration
+
+```csharp
+[Serializable]
+public partial struct Double4 : IEquatable<Double4>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `X` | `double` | The X component. |
+| `Y` | `double` | The Y component. |
+| `Z` | `double` | The Z component. |
+| `W` | `double` | The W component. |
+
+---
+
+## Static Constants
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `Zero` | `(0, 0, 0, 0)` | The zero vector. |
+| `One` | `(1, 1, 1, 1)` | A vector with all components set to one. |
+| `UnitX` | `(1, 0, 0, 0)` | The unit vector along the X-axis. |
+| `UnitY` | `(0, 1, 0, 0)` | The unit vector along the Y-axis. |
+| `UnitZ` | `(0, 0, 1, 0)` | The unit vector along the Z-axis. |
+| `UnitW` | `(0, 0, 0, 1)` | The unit vector along the W-axis. |
+
+---
+
+## Constructors
+
+| Signature | Description |
+|-----------|-------------|
+| `Double4(double scalar)` | Sets all four components to `scalar`. |
+| `Double4(double x, double y, double z, double w)` | Sets `X`, `Y`, `Z`, and `W` individually. |
+| `Double4(Double4 v)` | Copy constructor. |
+| `Double4(double[] array)` | Reads components from a `double[]` of at least length 4. |
+| `Double4(IEnumerable<double> values)` | Reads components from an enumerable of at least 4 elements. |
+| `Double4(ReadOnlySpan<double> span)` | Reads components from a read-only span of at least length 4. |
+| `Double4(Span<double> span)` | Reads components from a span of at least length 4. |
+| `Double4(Double2 xy, double z, double w)` | Constructs from a `Double2` for XY and separate Z/W scalars. |
+| `Double4(double x, Double2 yz, double w)` | Constructs from a separate X, a `Double2` for YZ, and a separate W. |
+| `Double4(double x, double y, Double2 zw)` | Constructs from separate X/Y and a `Double2` for ZW. |
+| `Double4(Double2 xy, Double2 zw)` | Constructs from two `Double2` values. |
+| `Double4(Double3 xyz, double w)` | Constructs from a `Double3` and a separate W scalar. |
+| `Double4(double x, Double3 yzw)` | Constructs from a separate X and a `Double3` for YZW. |
+| `Double4(Float4 v)` | Widens a `Float4` to double precision (implicit cast). |
+| `Double4(Int4 v)` | Converts an `Int4` to double precision (explicit cast). |
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `this[int index]` | `double` | Gets or sets a component by index. `0` → `X`, `1` → `Y`, `2` → `Z`, `3` → `W`. Throws `IndexOutOfRangeException` for any other value. |
+
+---
+
+## Operators
+
+### Arithmetic — vector × vector (component-wise)
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Double4 + Double4` | Component-wise addition. |
+| `-` | `Double4 - Double4` | Component-wise subtraction. |
+| `*` | `Double4 * Double4` | Component-wise multiplication. |
+| `/` | `Double4 / Double4` | Component-wise division. |
+| `%` | `Double4 % Double4` | Component-wise remainder. |
+
+### Arithmetic — vector × scalar
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Double4 + double` / `double + Double4` | Adds scalar to each component. |
+| `-` | `Double4 - double` / `double - Double4` | Subtracts scalar from each component (or vice-versa). |
+| `*` | `Double4 * double` / `double * Double4` | Scales each component. |
+| `/` | `Double4 / double` / `double / Double4` | Divides each component by scalar (or divides scalar by each component). |
+| `%` | `Double4 % double` / `double % Double4` | Remainder with scalar. |
+
+### Unary & comparison
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| Unary `-` | `-Double4` | Negates all four components. |
+| `==` | `Double4 == Double4` | Component-wise equality. |
+| `!=` | `Double4 != Double4` | Component-wise inequality. |
+
+### Casts
+
+| Conversion | Kind | Description |
+|------------|------|-------------|
+| `Float4` → `Double4` | `implicit` | Widens single-precision to double-precision. |
+| `Int4` → `Double4` | `explicit` | Converts integer components to `double`. |
+| `Double2` → `Double4` | `explicit` | Extends to 4D with `Z = 0, W = 0`. |
+| `Double3` → `Double4` | `explicit` | Extends to 4D with `W = 0`. |
+| `Double4` → `Double2` | `explicit` | Drops `Z` and `W`. |
+| `Double4` → `Double3` | `explicit` | Drops `W`. |
+
+---
+
+## Static Methods
+
+### Geometric
+
+| Signature | Description |
+|-----------|-------------|
+| `static double Dot(Double4 x, Double4 y)` | Returns `x.X*y.X + x.Y*y.Y + x.Z*y.Z + x.W*y.W`. |
+| `static double Length(Double4 v)` | Returns the Euclidean length (magnitude) of `v`. |
+| `static double LengthSquared(Double4 v)` | Returns the squared length; cheaper than `Length` when only comparison is needed. |
+| `static Double4 Normalize(Double4 v)` | Returns a unit-length copy of `v`, or `Zero` if the vector is near-zero. |
+| `static double Distance(Double4 x, Double4 y)` | Returns the Euclidean distance between `x` and `y`. |
+| `static double DistanceSquared(Double4 x, Double4 y)` | Returns the squared distance between `x` and `y`. |
+| `static double AngleBetween(Double4 a, Double4 b)` | Returns the angle in **radians** between two vectors. |
+| `static bool IsParallel(Double4 a, Double4 b, double tolerance = 1e-15)` | Returns `true` if the two vectors point in the same or opposite directions within the given tolerance. |
+| `static bool IsPerpendicular(Double4 a, Double4 b, double tolerance = 1e-15)` | Returns `true` if the dot product is within `tolerance` of zero. |
+
+### Interpolation
+
+| Signature | Description |
+|-----------|-------------|
+| `static Double4 Slerp(Double4 a, Double4 b, double t)` | Spherically interpolates between `a` and `b`; `t` is clamped to `[0, 1]`. |
+| `static Double4 SlerpUnclamped(Double4 a, Double4 b, double t)` | Spherical interpolation without clamping `t`. |
+| `static Double4 MoveTowards(Double4 current, Double4 target, double maxDistanceDelta)` | Moves `current` toward `target` by at most `maxDistanceDelta`. |
+
+### Projection & Reflection
+
+| Signature | Description |
+|-----------|-------------|
+| `static Double4 Project(Double4 a, Double4 b)` | Projects vector `a` onto vector `b`. |
+| `static Double4 ProjectOntoPlane(Double4 vector, Double4 planeNormal)` | Removes the component of `vector` along `planeNormal`. |
+| `static Double4 Reflect(Double4 vector, Double4 normal)` | Reflects `vector` off the surface defined by `normal`. |
+| `static Double4 Refract(Double4 incident, Double4 normal, double eta)` | Computes the refraction direction given an index-of-refraction ratio `eta`. Returns `(0, 0, 0, 0)` on total internal reflection. |
+
+---
+
+## Swizzles
+
+`Double4` exposes all GLSL-style 2-, 3-, and 4-component swizzle properties (auto-generated). Read-write swizzles reassign the underlying components; read-only swizzles (where any component repeats) are computed getters.
+
+**Examples:**
+
+```csharp
+Double4 v = new Double4(1.0, 2.0, 3.0, 4.0);
+
+Double2 xy   = v.XY;    // (1.0, 2.0) — get/set
+Double3 zyx  = v.ZYX;   // (3.0, 2.0, 1.0) — get/set
+Double4 wzyx = v.WZYX;  // (4.0, 3.0, 2.0, 1.0) — get/set
+Double4 xxxx = v.XXXX;  // (1.0, 1.0, 1.0, 1.0) — get only
+```
+
+---
+
+## Instance Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `double[] ToArray()` | Returns `[X, Y, Z, W]` as a new array. |
+| `string ToString()` | Formats as `(X, Y, Z, W)` using the current culture. |
+| `string ToString(string format)` | Formats each component with the given numeric format string. |
+| `string ToString(string format, IFormatProvider formatProvider)` | Fully customizable format output. |
+| `bool Equals(Double4 other)` | Component-wise equality. |
+| `int GetHashCode()` | Combined hash of all four components. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// Homogeneous point and direction in clip-space
+Double4 clipPos = new Double4(0.5, -0.3, 0.9, 1.0);  // homogeneous point
+Double4 dir     = new Double4(0.0,  1.0, 0.0, 0.0);  // homogeneous direction
+
+// Dot product (e.g. lighting contribution)
+double contrib = Double4.Dot(clipPos, dir);
+
+// Normalise a 4D vector
+Double4 normalised = Double4.Normalize(clipPos);
+
+// Compose from sub-vectors
+Double3 position = new Double3(1.0, 2.0, 3.0);
+Double4 homogeneous = new Double4(position, 1.0);  // w = 1 → point
+
+// Splat a scalar into all components
+Double4 ones = new Double4(1.0);
+
+Console.WriteLine($"Dot        : {contrib}");
+Console.WriteLine($"Normalised : {normalised}");
+Console.WriteLine($"Homogeneous: {homogeneous}");
+```

@@ -1,0 +1,195 @@
+---
+title: "Int4 — 4D Integer Vector"
+sidebarTitle: "Int4"
+description: "API reference for Int4: constructors, fields, static constants, arithmetic and bitwise operators, the Dot static method, and GLSL-style swizzles."
+---
+
+`Int4` is a 4-component vector backed by `int` (32-bit signed integer) values. It is defined in the `Prowl.Vector` namespace and marked `[Serializable]`. Common uses include packed RGBA color channels (0–255), shader register indices, and 4D discrete coordinates.
+
+<Note>
+  `Int4` does **not** provide `Normalize`, `Length`, `Cross`, `Slerp`, or other floating-point geometric methods. Use `Float4` or `Double4` when those operations are required. `Int4` does expose a `Dot` method that returns an `int`.
+</Note>
+
+## Declaration
+
+```csharp
+[Serializable]
+public partial struct Int4 : IEquatable<Int4>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `X` | `int` | The X component. |
+| `Y` | `int` | The Y component. |
+| `Z` | `int` | The Z component. |
+| `W` | `int` | The W component. |
+
+---
+
+## Static Constants
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `Zero` | `(0, 0, 0, 0)` | The zero vector. |
+| `One` | `(1, 1, 1, 1)` | A vector with all components set to one. |
+| `UnitX` | `(1, 0, 0, 0)` | The unit vector along the X-axis. |
+| `UnitY` | `(0, 1, 0, 0)` | The unit vector along the Y-axis. |
+| `UnitZ` | `(0, 0, 1, 0)` | The unit vector along the Z-axis. |
+| `UnitW` | `(0, 0, 0, 1)` | The unit vector along the W-axis. |
+
+---
+
+## Constructors
+
+| Signature | Description |
+|-----------|-------------|
+| `Int4(int scalar)` | Sets all four components to `scalar`. |
+| `Int4(int x, int y, int z, int w)` | Sets `X`, `Y`, `Z`, and `W` individually. |
+| `Int4(Int4 v)` | Copy constructor. |
+| `Int4(int[] array)` | Reads components from an `int[]` of at least length 4. |
+| `Int4(IEnumerable<int> values)` | Reads components from an enumerable of at least 4 elements. |
+| `Int4(ReadOnlySpan<int> span)` | Reads components from a read-only span of at least length 4. |
+| `Int4(Span<int> span)` | Reads components from a span of at least length 4. |
+| `Int4(Int2 xy, int z, int w)` | Constructs from an `Int2` for XY and separate Z/W scalars. |
+| `Int4(int x, Int2 yz, int w)` | Constructs from a separate X, an `Int2` for YZ, and a separate W. |
+| `Int4(int x, int y, Int2 zw)` | Constructs from separate X/Y and an `Int2` for ZW. |
+| `Int4(Int2 xy, Int2 zw)` | Constructs from two `Int2` values. |
+| `Int4(Int3 xyz, int w)` | Constructs from an `Int3` and a separate W scalar. |
+| `Int4(int x, Int3 yzw)` | Constructs from a separate X and an `Int3` for YZW. |
+| `Int4(Float4 v)` | Truncates a `Float4` to integer components (explicit cast). |
+| `Int4(Double4 v)` | Truncates a `Double4` to integer components (explicit cast). |
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `this[int index]` | `int` | Gets or sets a component by index. `0` → `X`, `1` → `Y`, `2` → `Z`, `3` → `W`. Throws `IndexOutOfRangeException` for any other value. |
+
+---
+
+## Operators
+
+### Arithmetic — vector × vector (component-wise)
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Int4 + Int4` | Component-wise addition. |
+| `-` | `Int4 - Int4` | Component-wise subtraction. |
+| `*` | `Int4 * Int4` | Component-wise multiplication. |
+| `/` | `Int4 / Int4` | Component-wise integer division. |
+| `%` | `Int4 % Int4` | Component-wise remainder. |
+
+### Arithmetic — vector × scalar
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Int4 + int` / `int + Int4` | Adds scalar to each component. |
+| `-` | `Int4 - int` / `int - Int4` | Subtracts scalar from each component (or vice-versa). |
+| `*` | `Int4 * int` / `int * Int4` | Scales each component. |
+| `/` | `Int4 / int` / `int / Int4` | Divides each component by scalar (or divides scalar by each component). |
+| `%` | `Int4 % int` / `int % Int4` | Remainder with scalar. |
+
+### Bitwise
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `&` | `Int4 & Int4` | Component-wise bitwise AND. |
+| `\|` | `Int4 \| Int4` | Component-wise bitwise OR. |
+| `^` | `Int4 ^ Int4` | Component-wise bitwise XOR. |
+| `~` | `~Int4` | Component-wise bitwise NOT. |
+| `<<` | `Int4 << int` | Shifts each component left by the given amount. |
+| `>>` | `Int4 >> int` | Shifts each component right by the given amount. |
+
+### Unary & comparison
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| Unary `-` | `-Int4` | Negates all four components. |
+| `==` | `Int4 == Int4` | Component-wise equality. |
+| `!=` | `Int4 != Int4` | Component-wise inequality. |
+
+### Casts
+
+| Conversion | Kind | Description |
+|------------|------|-------------|
+| `Int2` → `Int4` | `implicit` | Extends to 4D with `Z = 0, W = 0`. |
+| `Int3` → `Int4` | `implicit` | Extends to 4D with `W = 0`. |
+| `Int4` → `Int2` | `explicit` | Drops `Z` and `W`. |
+| `Int4` → `Int3` | `explicit` | Drops `W`. |
+| `Float4` → `Int4` | `explicit` | Truncates float components to `int`. |
+| `Double4` → `Int4` | `explicit` | Truncates double components to `int`. |
+
+---
+
+## Static Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `static int Dot(Int4 x, Int4 y)` | Returns the integer dot product `x.X*y.X + x.Y*y.Y + x.Z*y.Z + x.W*y.W`. |
+
+---
+
+## Swizzles
+
+`Int4` exposes all GLSL-style 2-, 3-, and 4-component swizzle properties (auto-generated). Read-write swizzles reassign the underlying components; read-only swizzles (where any component repeats) are computed getters.
+
+**Examples:**
+
+```csharp
+Int4 v = new Int4(1, 2, 3, 4);
+
+Int2 xy   = v.XY;    // (1, 2) — get/set
+Int3 zyx  = v.ZYX;   // (3, 2, 1) — get/set
+Int4 wzyx = v.WZYX;  // (4, 3, 2, 1) — get/set
+Int4 xxxx = v.XXXX;  // (1, 1, 1, 1) — get-only
+```
+
+---
+
+## Instance Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `int[] ToArray()` | Returns `[X, Y, Z, W]` as a new array. |
+| `string ToString()` | Formats as `(X, Y, Z, W)` using the current culture. |
+| `string ToString(string format)` | Formats each component with the given numeric format string. |
+| `string ToString(string format, IFormatProvider formatProvider)` | Fully customizable format output. |
+| `bool Equals(Int4 other)` | Component-wise equality. |
+| `int GetHashCode()` | Combined hash of all four components. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// Packed RGBA color (0–255 per channel)
+Int4 red   = new Int4(255, 0,   0,   255);
+Int4 blue  = new Int4(0,   0,   255, 255);
+
+// Blend two colors at 50% (integer midpoint)
+Int4 blended = (red + blue) / 2;  // (127, 0, 127, 255)
+
+// Bit-mask to strip alpha
+Int4 noAlpha = blended & new Int4(0xFF, 0xFF, 0xFF, 0);
+
+// Dot product (e.g. luminance approximation scaled ×1000)
+Int4 lumWeights = new Int4(299, 587, 114, 0);
+int  luminance  = Int4.Dot(red, lumWeights) / 1000;  // ≈ 76
+
+// Implicit widening from Int3
+Int3 xyz = new Int3(10, 20, 30);
+Int4 xyzw = xyz;  // implicit — W = 0
+
+Console.WriteLine($"Blended  : {blended}");
+Console.WriteLine($"No alpha : {noAlpha}");
+Console.WriteLine($"Luminance: {luminance}");
+Console.WriteLine($"From Int3: {xyzw}");
+```

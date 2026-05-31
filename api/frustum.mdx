@@ -1,0 +1,311 @@
+---
+title: "Frustum — View Frustum with Six Planes"
+sidebarTitle: "Frustum"
+description: "API reference for Frustum: construction from six planes or a projection matrix, containment tests for points, spheres, and AABBs, and IBoundingShape support."
+---
+
+## Declaration
+
+```csharp
+public struct Frustum : IEquatable<Frustum>, IFormattable, IBoundingShape
+```
+
+`Frustum` represents a 3D viewing frustum defined by **six half-spaces** (planes). The planes are stored in the fixed order: **Near, Far, Left, Right, Top, Bottom**. The struct implements `IBoundingShape` so it can participate in GJK-based queries.
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Planes` | `Plane[]` | Array of exactly 6 planes in Near/Far/Left/Right/Top/Bottom order. |
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Near` | `Plane` | `Planes[0]` — the near clipping plane. |
+| `Far` | `Plane` | `Planes[1]` — the far clipping plane. |
+| `Left` | `Plane` | `Planes[2]` — the left clipping plane. |
+| `Right` | `Plane` | `Planes[3]` — the right clipping plane. |
+| `Top` | `Plane` | `Planes[4]` — the top clipping plane. |
+| `Bottom` | `Plane` | `Planes[5]` — the bottom clipping plane. |
+
+All properties have both a getter and a setter that read/write the corresponding element in `Planes`.
+
+---
+
+## Constructors
+
+### From a `Plane[]` array
+
+```csharp
+Frustum(Plane[] planes)
+```
+
+Accepts an array of **exactly** 6 planes and copies them into internal storage. Throws `ArgumentException` if the array is null or does not contain exactly 6 elements.
+
+---
+
+### From six individual planes
+
+```csharp
+Frustum(Plane near, Plane far, Plane left, Plane right, Plane top, Plane bottom)
+```
+
+Convenience overload that stores the six planes in the canonical order.
+
+---
+
+## Static Factory Methods
+
+### `FromMatrix`
+
+```csharp
+public static Frustum FromMatrix(Float4x4 viewProjectionMatrix)
+```
+
+Extracts the six frustum planes from a combined **view-projection matrix** using the Gribb/Hartmann method. The matrix is assumed to be in **DirectX-style** column-major form with a [0, 1] depth range.
+
+Each plane normal is extracted by adding or subtracting rows of the matrix, and then the result is stored as a `Plane(normal, -D)` so that the plane convention `dot(Normal, point) = D` is satisfied.
+
+---
+
+### `FromMatrices`
+
+```csharp
+public static Frustum FromMatrices(Float4x4 viewMatrix, Float4x4 projectionMatrix)
+```
+
+Multiplies `projectionMatrix * viewMatrix` first, then calls `FromMatrix`. Use this when you have separate view and projection matrices.
+
+---
+
+### `FromCamera`
+
+```csharp
+public static Frustum FromCamera(
+    Float3 position, Float3 forward, Float3 up,
+    float fovY, float aspect, float nearDist, float farDist)
+```
+
+Builds a perspective frustum analytically from camera parameters without requiring a matrix.
+
+| Parameter | Description |
+|-----------|-------------|
+| `position` | World-space camera position. |
+| `forward` | Normalized forward direction. |
+| `up` | Normalized up direction. |
+| `fovY` | Vertical field of view in **radians**. |
+| `aspect` | Viewport aspect ratio (width / height). |
+| `nearDist` | Distance to the near plane. |
+| `farDist` | Distance to the far plane. |
+
+---
+
+### `CreateOrthographic`
+
+```csharp
+public static Frustum CreateOrthographic(
+    float left, float right, float bottom,
+    float top, float nearDist, float farDist)
+```
+
+Creates an orthographic (parallel-projection) frustum defined by its six boundary values. Planes point inward toward the view volume.
+
+---
+
+## Methods
+
+### `Contains`
+
+```csharp
+public bool Contains(Float3 point)
+```
+
+Returns `true` if `point` is on the positive (inner) side of all six planes. Internally delegates to `Intersection.FrustumContainsPoint`.
+
+---
+
+### `Intersects`
+
+```csharp
+public bool Intersects(Sphere sphere)
+public bool Intersects(AABB aabb)
+```
+
+Conservative overlap test against a sphere or AABB:
+
+- **Sphere** — returns `false` only if the sphere center is more than `radius` behind any single plane.
+- **AABB** — classifies all eight corners against each plane; returns `false` only if all corners are behind the same plane.
+
+Both delegate to the corresponding `Intersection.*` helpers.
+
+---
+
+### `ClassifyPoint`
+
+```csharp
+public int ClassifyPoint(Float3 point)
+```
+
+Returns the number of planes the point is behind. `0` means fully inside; values `1–6` indicate the point is outside one or more planes.
+
+---
+
+### `ClassifySphere`
+
+```csharp
+public int ClassifySphere(Sphere sphere)
+```
+
+Returns the number of planes the sphere is **completely** behind (i.e., `signedDistance < -radius`). `0` = fully inside or intersecting all planes.
+
+---
+
+### `ClassifyAABB`
+
+```csharp
+public int ClassifyAABB(AABB aabb)
+```
+
+Returns the number of planes for which the AABB is completely on the back (outside) side. Uses `Intersection.ClassifyAABBToPlane` per plane.
+
+---
+
+### `Normalize` / `Normalized`
+
+```csharp
+public void Normalize()
+public Frustum Normalized()
+```
+
+Normalizes all six plane normals to unit length, ensuring that `GetSignedDistanceToPoint` returns true metric distances. `Normalized()` returns a copy without modifying the original.
+
+---
+
+### `Expand` / `Expanded`
+
+```csharp
+public void Expand(float amount)
+public Frustum Expanded(float amount)
+```
+
+Moves each plane outward by `amount` (subtracts from the `D` component). Useful for conservative culling with a tolerance margin.
+
+---
+
+### `Transform`
+
+```csharp
+public Frustum Transform(Float4x4 matrix)
+```
+
+Transforms the frustum into a new coordinate space by applying the inverse-transpose of `matrix` to each plane. Returns a new `Frustum`.
+
+---
+
+### `GetCorners`
+
+```csharp
+public Float3[] GetCorners()
+```
+
+Computes and returns the 8 corner points of the frustum by intersecting triples of planes. Corner ordering:
+
+| Index | Corner |
+|-------|--------|
+| 0 | Near-Left-Bottom |
+| 1 | Near-Right-Bottom |
+| 2 | Near-Left-Top |
+| 3 | Near-Right-Top |
+| 4 | Far-Left-Bottom |
+| 5 | Far-Right-Bottom |
+| 6 | Far-Left-Top |
+| 7 | Far-Right-Top |
+
+---
+
+### `IsValid`
+
+```csharp
+public bool IsValid()
+```
+
+Returns `true` when `Planes` is non-null, contains exactly 6 elements, and all plane normals have non-zero length.
+
+---
+
+### `SupportMap` *(IBoundingShape)*
+
+```csharp
+public Float3 SupportMap(Float3 direction)
+```
+
+Returns the corner (from `GetCorners()`) that has the largest dot product with `direction`. Used by GJK algorithms.
+
+---
+
+## Operators
+
+| Operator | Description |
+|----------|-------------|
+| `==` | Compares all six planes for equality. |
+| `!=` | Inverse of `==`. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// --- Extract frustum from camera matrices ---
+Float4x4 view       = GetViewMatrix(camera);
+Float4x4 projection = GetProjectionMatrix(camera);
+Frustum frustum     = Frustum.FromMatrices(view, projection);
+
+// --- Per-object frustum culling loop ---
+foreach (GameObject obj in scene.Objects)
+{
+    // Cheap sphere pre-test
+    Sphere bounds = obj.BoundingSphere;
+    if (!frustum.Intersects(bounds))
+        continue;   // trivially outside — skip
+
+    // More accurate AABB test for large objects
+    AABB aabb = obj.WorldAABB;
+    if (!frustum.Intersects(aabb))
+        continue;
+
+    Render(obj);
+}
+
+// --- Build a frustum analytically from camera parameters ---
+Frustum camFrustum = Frustum.FromCamera(
+    position : new Float3(0f, 5f, -10f),
+    forward  : Float3.Normalize(new Float3(0f, -0.2f, 1f)),
+    up       : Float3.UnitY,
+    fovY     : Maths.PI / 3f,   // 60 degrees
+    aspect   : 16f / 9f,
+    nearDist : 0.1f,
+    farDist  : 1000f
+);
+
+// Expand slightly to avoid popping near the boundaries
+Frustum conservative = camFrustum.Expanded(0.5f);
+
+// Point containment
+bool visible = conservative.Contains(new Float3(3f, 1f, 5f));
+```
+
+---
+
+## Notes
+
+- Plane normals point **inward** (toward the interior of the frustum). A point is inside when it is on the positive side of all six planes.
+- Always call `Normalize()` on frustums extracted via `FromMatrix` if you need accurate metric distances from `GetSignedDistanceToPoint`.
+- `Frustum` is a **struct**, but `Planes` is a reference-type array. Copying a `Frustum` value shares the same array unless the constructor allocates a new one (both constructors do allocate).
+- `FromCamera` is more numerically stable than `FromMatrix` when the view-projection matrix is ill-conditioned (e.g., near extreme near/far ratios).

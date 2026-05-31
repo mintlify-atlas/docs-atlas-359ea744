@@ -1,0 +1,355 @@
+---
+title: "Float3x3 — 3×3 Single-Precision Matrix"
+sidebarTitle: "Float3x3"
+description: "API reference for Float3x3: constructors, column fields, quaternion and axis-angle factory methods, normal transforms, look-rotation, and matrix arithmetic."
+---
+
+`Float3x3` is a 3×3 single-precision floating-point matrix in the `Prowl.Vector` namespace. It uses **column-major storage** — each column field (`c0`, `c1`, `c2`) is a `Float3`. The struct is marked `[Serializable]` and is used for pure rotation/scale transforms, normal-vector correction, and as the upper-left 3×3 block extracted from a `Float4x4`.
+
+## Declaration
+
+```csharp
+[System.Serializable]
+public partial struct Float3x3 : System.IEquatable<Float3x3>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `c0` | `Float3` | Column 0 — stores `(m00, m10, m20)` (X-axis basis). |
+| `c1` | `Float3` | Column 1 — stores `(m01, m11, m21)` (Y-axis basis). |
+| `c2` | `Float3` | Column 2 — stores `(m02, m12, m22)` (Z-axis basis; aliased as `Translation`). |
+
+Storage is column-major: `this[row, col]` resolves to `this[col][row]`.
+
+---
+
+## Static Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Float3x3.Identity` | Diagonal `(1, 1, 1)` | Multiplicative identity — no transform. |
+| `Float3x3.Zero` | All zeros | A zeroed matrix. |
+
+```csharp
+Float3x3 m = Float3x3.Identity;
+```
+
+---
+
+## Constructors
+
+### From three column vectors
+
+```csharp
+public Float3x3(Float3 col0, Float3 col1, Float3 col2)
+```
+
+Constructs directly from three pre-built column vectors.
+
+---
+
+### From nine scalar values (row-major argument order)
+
+```csharp
+public Float3x3(
+    float m00, float m01, float m02,
+    float m10, float m11, float m12,
+    float m20, float m21, float m22)
+```
+
+Arguments are supplied in **row-major** reading order; stored column-major internally.
+
+---
+
+### Broadcast scalar
+
+```csharp
+public Float3x3(float v)
+```
+
+Sets every element to `v`.
+
+---
+
+### Narrowing from Double3x3
+
+```csharp
+public Float3x3(Double3x3 m)
+```
+
+Narrows each `double` column to `float`. Explicit cast `(Float3x3)double3x3` also available.
+
+---
+
+### Extract upper-left from Float4x4
+
+```csharp
+public Float3x3(Float4x4 f4x4)
+```
+
+Extracts the 3×3 rotation/scale block from a full 4×4 matrix (`c0.XYZ`, `c1.XYZ`, `c2.XYZ`).
+
+---
+
+## Properties
+
+### Translation
+
+```csharp
+public Float3 Translation { get; set; }
+```
+
+Aliases column `c2`.
+
+---
+
+### Column indexer
+
+```csharp
+public ref Float3 this[int index]   // index in [0, 2]
+```
+
+Returns a by-reference handle to the column for in-place mutation. Throws `ArgumentOutOfRangeException` for out-of-range indices.
+
+---
+
+### Element indexer
+
+```csharp
+public float this[int row, int column] { get; set; }   // each in [0, 2]
+```
+
+Scalar element access. Resolves to `this[column][row]`.
+
+---
+
+## Instance Methods
+
+### Row accessors
+
+```csharp
+public Float3 GetRow0();
+public Float3 GetRow1();
+public Float3 GetRow2();
+
+public void SetRow0(Float3 value);
+public void SetRow1(Float3 value);
+public void SetRow2(Float3 value);
+```
+
+Read or write a full row across all three columns.
+
+---
+
+### Invert (instance)
+
+```csharp
+public Float3x3 Invert()
+```
+
+Convenience wrapper around the static overload. Returns the inverted matrix, or a `NaN`-filled matrix if singular.
+
+---
+
+## Static Factory Methods
+
+### FromQuaternion
+
+```csharp
+public static Float3x3 FromQuaternion(Quaternion q)
+```
+
+Builds a pure rotation matrix from a unit quaternion using the optimised half-angle product formula. All nine coefficients are computed from the doubled products `x2, y2, z2, xy, xz, yz, wx, wy, wz`.
+
+---
+
+### FromAxisAngle
+
+```csharp
+public static Float3x3 FromAxisAngle(Float3 axis, float angle)
+```
+
+Builds a rotation matrix using Rodrigues' rotation formula. `axis` **must be normalised**; `angle` is in **radians**.
+
+---
+
+### RotateX / RotateY / RotateZ
+
+```csharp
+public static Float3x3 RotateX(float angle)
+public static Float3x3 RotateY(float angle)
+public static Float3x3 RotateZ(float angle)
+```
+
+Returns an elementary rotation matrix around the respective world axis. `angle` is in **radians**. Computes `sin`/`cos` using `Maths.Sin`/`Maths.Cos` once and inserts them into the canonical locations.
+
+---
+
+### Scale
+
+```csharp
+public static Float3x3 Scale(float s)                      // uniform
+public static Float3x3 Scale(float x, float y, float z)   // non-uniform
+public static Float3x3 Scale(Float3 v)                     // from vector
+```
+
+Returns a diagonal scale matrix.
+
+---
+
+### CreateLookRotation
+
+```csharp
+public static Float3x3 CreateLookRotation(Float3 forward, Float3 up)
+```
+
+Builds a 3×3 view-rotation matrix (the rotational component of a look-at transform). Returns `Identity` if either input is degenerate or if `forward` and `up` are collinear.
+
+Basis construction:
+- `zAxis = normalize(forward)`
+- `xAxis = normalize(cross(up, zAxis))`
+- `yAxis = cross(zAxis, xAxis)`
+
+---
+
+### Transpose
+
+```csharp
+public static Float3x3 Transpose(Float3x3 m)
+```
+
+Returns the transpose — each new column is the corresponding row of `m`. For orthonormal rotation matrices, this equals the inverse.
+
+---
+
+### Determinant
+
+```csharp
+public static float Determinant(Float3x3 m)
+```
+
+Computes the scalar determinant via the scalar triple-product formula.
+
+---
+
+### Invert (static)
+
+```csharp
+public static bool Invert(Float3x3 matrix, out Float3x3 result)
+```
+
+Computes the inverse via the adjugate matrix divided by the determinant. Returns `true` on success. If `|det| < float.Epsilon`, writes `NaN` to `result` and returns `false`.
+
+---
+
+### TransformPoint (2D homogeneous)
+
+```csharp
+public static Float2 TransformPoint(Float2 point, Float3x3 matrix)
+```
+
+Promotes `point` to `(x, y, 1)`, multiplies, then divides by `z` to recover the 2D result. Perspective divide is skipped when `|z| ≤ float.Epsilon`.
+
+---
+
+### TransformNormal
+
+```csharp
+// 3-D normal (inverse-transpose method)
+public static Float3 TransformNormal(Float3 normal, Float3x3 matrix)
+
+// 2-D normal (delegates to Float2x2.TransformNormal via upper-left 2x2)
+public static Float2 TransformNormal(Float2 normal, Float3x3 matrix)
+```
+
+Transforms normal vectors correctly under non-uniform scale. The 3D overload computes `(M⁻¹)ᵀ · normal` then normalises; returns the original `normal` if `M` is singular. The 2D overload extracts the upper-left `Float2x2` and delegates.
+
+---
+
+## Operators
+
+| Operator | Signature | Notes |
+|----------|-----------|-------|
+| `*` | `Float3x3 * Float3x3 → Float3x3` | Matrix product. `A * B` applies B first, then A. |
+| `*` | `Float3x3 * Float3 → Float3` | Matrix–vector product. |
+| `==` | `Float3x3 == Float3x3 → bool` | Component-wise equality. |
+| `!=` | `Float3x3 != Float3x3 → bool` | Logical negation of `==`. |
+
+### Explicit casts
+
+```csharp
+explicit operator Float3x3(Double3x3 m)   // narrowing: double → float
+explicit operator Double3x3(Float3x3 m)   // widening (on Double3x3 side)
+```
+
+---
+
+## Additional Methods
+
+### ToArray
+
+```csharp
+public float[] ToArray()
+```
+
+Returns a `float[9]` in row-major order (`[row * 3 + col]`).
+
+---
+
+### ToString
+
+```csharp
+public override string ToString()
+public string ToString(string format)
+public string ToString(string format, IFormatProvider formatProvider)
+```
+
+Formats all 9 components grouped by row, e.g. `Float3x3(1, 0, 0,  0, 1, 0,  0, 0, 1)`.
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// 1. Rotation from a unit quaternion
+var quat = Quaternion.CreateFromYawPitchRoll(0.3f, 0.1f, 0.0f);
+Float3x3 rot = Float3x3.FromQuaternion(quat);
+
+// 2. Rotation from axis-angle (45° around (1,1,0))
+Float3 axis = Float3.Normalize(new Float3(1f, 1f, 0f));
+Float3x3 axisRot = Float3x3.FromAxisAngle(axis, MathF.PI / 4f);
+
+// 3. Elementary rotations and composition
+Float3x3 rx = Float3x3.RotateX(MathF.PI / 6f);   // 30°
+Float3x3 ry = Float3x3.RotateY(MathF.PI / 4f);   // 45°
+Float3x3 combined = rx * ry;                       // ry applied first
+
+// 4. Non-uniform scale
+Float3x3 scale = Float3x3.Scale(2f, 1f, 0.5f);
+
+// 5. Correct normal transform under non-uniform scale
+Float3 normal  = Float3.UnitY;
+Float3 tNormal = Float3x3.TransformNormal(normal, scale); // inverse-transpose applied
+
+// 6. View rotation matrix (look-at, rotation only)
+Float3x3 lookRot = Float3x3.CreateLookRotation(
+    forward: Float3.Normalize(new Float3(0f, -1f, 1f)),
+    up:      Float3.UnitY);
+
+// 7. Extract rotation block from a TRS matrix
+Float4x4 trs   = Float4x4.CreateTRS(Float3.Zero, quat, Float3.One);
+Float3x3 upper = new Float3x3(trs);
+
+// 8. Inverse and determinant
+bool ok  = Float3x3.Invert(combined, out Float3x3 inv);
+float det = Float3x3.Determinant(combined);
+
+// 9. Widen to Double3x3 for high-precision work
+Double3x3 d = (Double3x3)rot;
+```

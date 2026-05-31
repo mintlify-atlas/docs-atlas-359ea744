@@ -1,0 +1,253 @@
+---
+title: "Quaternion Rotations in Prowl.Vector"
+sidebarTitle: "Quaternions"
+description: "Create and interpolate 3D rotations with Quaternion — Euler angles, axis-angle, Slerp, Nlerp, LookRotation, and matrix conversion."
+---
+
+`Quaternion` is Prowl.Vector's single rotation type, using **float precision** (`float X, Y, Z, W`). It represents an orientation in 3D space without the gimbal-lock issues of Euler angles and without the overhead of a full 4×4 matrix. Components are ordered **X, Y, Z, W**, where W is the scalar part and X/Y/Z form the vector part. Unit quaternions (magnitude ≈ 1) are valid rotations; the identity quaternion `(0, 0, 0, 1)` represents no rotation.
+
+---
+
+## Construction
+
+### Direct Constructor
+
+```csharp
+// Raw components — you are responsible for normalization
+var q = new Quaternion(0f, 0f, 0f, 1f); // identity
+```
+
+### From Euler Angles
+
+`FromEuler` accepts angles **in degrees** as a `Float3` or three separate `float` values and applies them in **ZXYr** order (roll → pitch → yaw), matching Unity's convention.
+
+```csharp
+// Rotate 45° around the Y axis
+Quaternion rotY45 = Quaternion.FromEuler(new Float3(0f, 45f, 0f));
+
+// Pitch 30°, yaw 90°, roll 0°
+Quaternion q = Quaternion.FromEuler(30f, 90f, 0f);
+```
+
+### From Axis-Angle
+
+Both method orderings are available so you can match whichever parameter order feels natural.
+
+```csharp
+float angle = Maths.PI / 4f; // 45° in radians
+
+// AxisAngle(axis, angle)
+Quaternion qa = Quaternion.AxisAngle(Float3.UnitY, angle);
+
+// AngleAxis(angle, axis)  — identical result
+Quaternion qb = Quaternion.AngleAxis(angle, Float3.UnitY);
+```
+
+### LookRotation
+
+Creates a quaternion that orients an object so that its local forward direction (+Z) points along `forward`, with `up` used to resolve the twist.
+
+```csharp
+Float3 forward = Float3.Normalize(new Float3(1f, 0f, 1f));
+Float3 up      = Float3.UnitY;
+
+Quaternion look = Quaternion.LookRotation(forward, up);
+```
+
+### From Matrix
+
+Reconstructs a quaternion from the rotation part of an existing matrix. The input must be orthonormal in its upper-left 3×3 block.
+
+```csharp
+Float4x4  mat  = Float4x4.CreateFromQuaternion(someQuat);
+Quaternion back = Quaternion.FromMatrix(mat);
+
+// Works with Float3x3 too
+Float3x3   m3  = Float3x3.FromQuaternion(someQuat);
+Quaternion back3 = Quaternion.FromMatrix(m3);
+```
+
+---
+
+## Properties
+
+### Identity
+
+```csharp
+Quaternion id = Quaternion.Identity; // (0, 0, 0, 1)
+```
+
+### EulerAngles
+
+Gets or sets the rotation expressed as Euler angles **in degrees**, using ZXYr decomposition. Reading `EulerAngles` is equivalent to calling `Quaternion.ToEuler(q)`.
+
+```csharp
+Quaternion q = Quaternion.FromEuler(new Float3(30f, 45f, 0f));
+
+Float3 euler = q.EulerAngles; // approximately (30, 45, 0) — degrees
+
+// Setting EulerAngles rebuilds the quaternion
+q.EulerAngles = new Float3(0f, 90f, 0f);
+```
+
+<Tip>
+Euler angles round-trip through `FromEuler` → `ToEuler` may not recover the exact original values because multiple Euler-angle triplets can represent the same orientation. Store rotations as quaternions wherever possible.
+</Tip>
+
+### Component Indexer
+
+```csharp
+Quaternion q = Quaternion.Identity;
+float x = q[0]; // X
+float y = q[1]; // Y
+float z = q[2]; // Z
+float w = q[3]; // W
+```
+
+---
+
+## Interpolation
+
+### Slerp — Spherical Linear Interpolation
+
+Follows the great arc on the unit sphere, producing **constant angular velocity**. Prefer `Slerp` when smooth, even-speed rotation is important (e.g., camera pans, animation blending).
+
+```csharp
+Quaternion start  = Quaternion.Identity;
+Quaternion end    = Quaternion.FromEuler(new Float3(0f, 180f, 0f));
+float      t      = 0.5f; // midpoint
+
+Quaternion mid = Quaternion.Slerp(start, end, t);
+```
+
+When the two quaternions are very close (dot product > 0.9995), `Slerp` automatically falls back to `Nlerp` for numerical stability.
+
+### Nlerp — Normalized Linear Interpolation
+
+Linearly interpolates the quaternion components and normalizes the result. **Faster** than `Slerp` but the angular velocity is not constant — rotation accelerates near the endpoints.
+
+```csharp
+Quaternion fast = Quaternion.Nlerp(start, end, t);
+```
+
+**When to prefer each:**
+
+| Method  | Velocity  | Cost   | Best for                              |
+|---------|-----------|--------|---------------------------------------|
+| `Slerp` | Constant  | Higher | Camera, cinematic, animation blending |
+| `Nlerp` | Non-uniform | Lower | Gameplay, physics, many interpolations per frame |
+
+---
+
+## Applying Rotations
+
+### Rotating a Vector
+
+The `*` operator between a `Quaternion` and a `Float3` applies the rotation to the vector.
+
+```csharp
+Quaternion rot    = Quaternion.FromEuler(new Float3(0f, 90f, 0f));
+Float3     forward = new Float3(0f, 0f, 1f);
+
+Float3 rotated = rot * forward; // ≈ (1, 0, 0)  — forward is now pointing right
+```
+
+### Composing Rotations
+
+Multiplying two quaternions combines their rotations. The result `a * b` applies `b` first, then `a`.
+
+```csharp
+Quaternion yaw   = Quaternion.FromEuler(new Float3(0f, 45f, 0f));
+Quaternion pitch = Quaternion.FromEuler(new Float3(30f, 0f, 0f));
+
+// Apply yaw first, then pitch (in local space)
+Quaternion combined = pitch * yaw;
+```
+
+---
+
+## Direction Helpers
+
+These helpers extract the local axis directions from a quaternion, equivalent to rotating the world axes.
+
+```csharp
+Quaternion q = Quaternion.FromEuler(new Float3(0f, 90f, 0f));
+
+Float3 fwd   = Quaternion.Forward(q); // (0,0,1) rotated by q
+Float3 up    = Quaternion.Up(q);      // (0,1,0) rotated by q
+Float3 right = Quaternion.Right(q);   // (1,0,0) rotated by q
+```
+
+---
+
+## Normalization and Inverse
+
+### Normalize
+
+Unit quaternions must be maintained to represent valid rotations. After many multiplications, floating-point drift can accumulate — normalize periodically.
+
+```csharp
+Quaternion q  = new Quaternion(0.1f, 0.2f, 0.3f, 0.9f); // not unit
+Quaternion n  = Quaternion.Normalize(q);
+
+// Safe variant — returns Identity if the quaternion has near-zero length
+Quaternion ns = Quaternion.NormalizeSafe(q);
+Quaternion nd = Quaternion.NormalizeSafe(q, defaultValue: Quaternion.Identity);
+```
+
+### Inverse
+
+The inverse of a unit quaternion is its **conjugate** (negated X/Y/Z, same W), representing the opposite rotation.
+
+```csharp
+Quaternion q   = Quaternion.FromEuler(new Float3(0f, 45f, 0f));
+Quaternion inv = Quaternion.Inverse(q);
+
+// Composing a quaternion with its inverse yields Identity
+Quaternion identity = q * inv; // ≈ (0, 0, 0, 1)
+```
+
+```csharp
+// Conjugate (for unit quaternions the conjugate equals the inverse)
+Quaternion conj = Quaternion.Conjugate(q);
+```
+
+---
+
+## Angle Between Two Quaternions
+
+```csharp
+Quaternion a = Quaternion.FromEuler(new Float3(0f,   0f, 0f));
+Quaternion b = Quaternion.FromEuler(new Float3(0f, 180f, 0f));
+
+float angleRad = Quaternion.Angle(a, b); // ≈ π  (180° in radians)
+```
+
+---
+
+## Example: Camera Follow with LookRotation and Slerp
+
+The following snippet shows a typical smooth camera-follow implementation using `LookRotation` to target the player and `Slerp` to ease the rotation over time.
+
+```csharp
+// Each frame:
+Float3 cameraPosition = /* ... current camera world position ... */;
+Float3 playerPosition = /* ... player world position ... */;
+Quaternion currentRot = /* ... camera's current rotation ... */;
+
+// Compute the desired look direction
+Float3 direction = Float3.Normalize(playerPosition - cameraPosition);
+
+// Build the target rotation so the camera faces the player
+Quaternion targetRot = Quaternion.LookRotation(direction, Float3.UnitY);
+
+// Smoothly interpolate toward the target (deltaTime * speed controls the lag)
+float speed    = 5f;
+float deltaTime = /* Time.DeltaTime */;
+currentRot = Quaternion.Slerp(currentRot, targetRot, Maths.Saturate(speed * deltaTime));
+
+// Retrieve the local axes of the resulting orientation
+Float3 camForward = Quaternion.Forward(currentRot);
+Float3 camUp      = Quaternion.Up(currentRot);
+Float3 camRight   = Quaternion.Right(currentRot);
+```

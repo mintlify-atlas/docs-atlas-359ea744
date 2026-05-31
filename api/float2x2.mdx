@@ -1,0 +1,295 @@
+---
+title: "Float2x2 — 2×2 Single-Precision Matrix"
+sidebarTitle: "Float2x2"
+description: "API reference for Float2x2: constructors, column fields, 2D rotation/scale factory methods, normal transforms, inversion, and matrix arithmetic."
+---
+
+`Float2x2` is a 2×2 single-precision floating-point matrix in the `Prowl.Vector` namespace. It uses **column-major storage** — each of the two column fields (`c0`, `c1`) is a `Float2`. The struct is marked `[Serializable]` and is the primary type for 2D rotation, scale, and shear operations, as well as the upper-left 2×2 submatrix of a `Float3x3` in homogeneous 2D contexts.
+
+## Declaration
+
+```csharp
+[System.Serializable]
+public partial struct Float2x2 : System.IEquatable<Float2x2>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `c0` | `Float2` | Column 0 — stores `(m00, m10)` (X-axis basis). |
+| `c1` | `Float2` | Column 1 — stores `(m01, m11)` (Y-axis basis). |
+
+Because storage is column-major, `this[row, col]` is equivalent to `this[col][row]`. Memory layout: `c0.X, c0.Y, c1.X, c1.Y`.
+
+---
+
+## Static Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Float2x2.Identity` | Diagonal `(1, 1)` | Multiplicative identity — no transform. |
+| `Float2x2.Zero` | All zeros | A zeroed matrix. |
+
+```csharp
+Float2x2 m = Float2x2.Identity;
+```
+
+---
+
+## Constructors
+
+### From two column vectors
+
+```csharp
+public Float2x2(Float2 col0, Float2 col1)
+```
+
+Constructs directly from two pre-built column vectors.
+
+---
+
+### From four scalar values (row-major argument order)
+
+```csharp
+public Float2x2(float m00, float m01, float m10, float m11)
+```
+
+Arguments follow **row-major** reading order (`m{row}{col}`). Stored column-major: `c0 = (m00, m10)`, `c1 = (m01, m11)`.
+
+---
+
+### Broadcast scalar
+
+```csharp
+public Float2x2(float v)
+```
+
+Sets all four elements to `v`.
+
+---
+
+### Narrowing from Double2x2
+
+```csharp
+public Float2x2(Double2x2 m)
+```
+
+Narrows each `double` column to `float`. An explicit cast `(Float2x2)double2x2` is also defined.
+
+---
+
+## Properties
+
+### Column indexer
+
+```csharp
+public ref Float2 this[int index]   // index in [0, 1]
+```
+
+Returns a by-reference handle to the column for in-place mutation. Throws `ArgumentOutOfRangeException` for out-of-range indices.
+
+---
+
+### Element indexer
+
+```csharp
+public float this[int row, int column] { get; set; }   // each in [0, 1]
+```
+
+Scalar element access. Resolves to `this[column][row]`.
+
+---
+
+## Instance Methods
+
+### Row accessors
+
+```csharp
+public Float2 GetRow0();
+public Float2 GetRow1();
+
+public void SetRow0(Float2 value);
+public void SetRow1(Float2 value);
+```
+
+Read or write a full row across both columns.
+
+---
+
+### Invert (instance)
+
+```csharp
+public Float2x2 Invert()
+```
+
+Convenience wrapper around the static overload. Returns the inverted matrix, or a `NaN`-filled matrix if singular.
+
+---
+
+## Static Factory Methods
+
+### Rotate
+
+```csharp
+public static Float2x2 Rotate(float angle)
+```
+
+Returns a **counter-clockwise** 2D rotation matrix for `angle` radians (computed via `Maths.Sin`/`Maths.Cos`):
+
+```
+| cos θ  -sin θ |
+| sin θ   cos θ |
+```
+
+---
+
+### Scale
+
+```csharp
+public static Float2x2 Scale(float s)              // uniform
+public static Float2x2 Scale(float x, float y)    // non-uniform
+public static Float2x2 Scale(Float2 v)             // from vector
+```
+
+Returns a diagonal scale matrix. The uniform overload places `s` on both diagonal entries; the non-uniform overloads set `c0.X = x` and `c1.Y = y`.
+
+---
+
+### Transpose
+
+```csharp
+public static Float2x2 Transpose(Float2x2 m)
+```
+
+Returns the transpose — the two off-diagonal elements swap. For orthonormal rotation matrices this equals the inverse.
+
+---
+
+### Determinant
+
+```csharp
+public static float Determinant(Float2x2 m)
+```
+
+Computes `m.c0.X * m.c1.Y − m.c1.X * m.c0.Y` (i.e., `ad − bc`). Also available as an **instance** method on `Float2x2` directly (uniquely among the matrix types — the static overload is also defined on the struct).
+
+---
+
+### Invert (static)
+
+```csharp
+public static bool Invert(Float2x2 matrix, out Float2x2 result)
+```
+
+Computes the inverse using the closed-form 2×2 formula:
+
+```
+M⁻¹ = (1/det) * | d  -b |
+                  | -c  a |
+```
+
+Returns `true` on success. If `|det| < float.Epsilon`, writes `NaN` to `result` and returns `false`.
+
+---
+
+### TransformNormal
+
+```csharp
+public static Float2 TransformNormal(Float2 normal, Float2x2 matrix)
+```
+
+Transforms a 2D surface normal correctly under non-uniform scale by computing `(M⁻¹)ᵀ · normal` and then normalising. Returns the original `normal` unchanged if the matrix is singular.
+
+---
+
+## Operators
+
+| Operator | Signature | Notes |
+|----------|-----------|-------|
+| `*` | `Float2x2 * Float2x2 → Float2x2` | Matrix product. `A * B` applies B first, then A (column-vector convention). |
+| `*` | `Float2x2 * Float2 → Float2` | Matrix–vector product. |
+| `==` | `Float2x2 == Float2x2 → bool` | Component-wise equality via `Float2.==`. |
+| `!=` | `Float2x2 != Float2x2 → bool` | Logical negation of `==`. |
+
+### Explicit casts
+
+```csharp
+explicit operator Float2x2(Double2x2 m)   // narrowing: double → float
+explicit operator Double2x2(Float2x2 m)   // widening (on Double2x2 side)
+```
+
+---
+
+## Additional Methods
+
+### ToArray
+
+```csharp
+public float[] ToArray()
+```
+
+Returns a flat `float[4]` in row-major order: `[row * 2 + col]`.
+
+---
+
+### ToString
+
+```csharp
+public override string ToString()
+public string ToString(string format)
+public string ToString(string format, IFormatProvider formatProvider)
+```
+
+Formats the four components grouped by row, e.g. `Float2x2(1, 0,  0, 1)`.
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// 1. 2D rotation by 30 degrees
+float angle = MathF.PI / 6.0f;
+Float2x2 rot = Float2x2.Rotate(angle);
+
+// 2. Transform a 2D direction vector
+var right = new Float2(1f, 0f);
+Float2 rotated = rot * right;   // (cos30, sin30) ≈ (0.866, 0.5)
+
+// 3. Uniform and non-uniform scale
+Float2x2 uniformScale    = Float2x2.Scale(3f);
+Float2x2 nonUniformScale = Float2x2.Scale(2f, 0.5f);
+
+// 4. Chain rotation then scale (scale applied first, column-vector convention)
+Float2x2 rs = rot * nonUniformScale;
+
+// 5. Transform a normal correctly under non-uniform scale
+var normal  = Float2.Normalize(new Float2(1f, 1f));
+Float2 tNormal = Float2x2.TransformNormal(normal, nonUniformScale); // inverse-transpose
+
+// 6. Invert
+if (Float2x2.Invert(rs, out Float2x2 inv))
+{
+    Float2x2 check = inv * rs;  // should equal Identity
+}
+
+// 7. Determinant (pure rotation → det == 1)
+float det = Float2x2.Determinant(rot);
+
+// 8. Transpose (== inverse for orthonormal rotation)
+Float2x2 rotT = Float2x2.Transpose(rot);
+
+// 9. Widen to Double2x2 for high-precision arithmetic
+Double2x2 dRot = (Double2x2)rot;
+
+// 10. Interop with Float3x3 (extract upper-left 2x2)
+Float3x3 affine2D = Float3x3.Identity;
+// affine2D holds a 2D affine transform; extract the linear part:
+Float2x2 linear = new Float2x2(
+    affine2D.c0.X, affine2D.c0.Y,
+    affine2D.c1.X, affine2D.c1.Y);
+```

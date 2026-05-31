@@ -1,0 +1,453 @@
+---
+title: "Intersection Tests with the Intersection Static Class"
+sidebarTitle: "Intersection Tests"
+description: "Complete reference for Prowl.Vector's Intersection static class — ray tests, overlap checks, closest-point queries, and signed distance computations."
+---
+
+The `Intersection` static class (`Prowl.Vector.Geometry` namespace) provides a comprehensive set of low-level, allocation-free intersection and overlap tests. Every method operates on plain value types — `Float3`, `float`, `bool` — so there are no heap allocations at call time. All direction vectors (ray directions, plane normals) are assumed to be normalized unless stated otherwise.
+
+```csharp
+using Prowl.Vector.Geometry;
+```
+
+<Note>
+All methods share a single epsilon constant: `Intersection.INTERSECTION_EPSILON = 0.00001f`. Distances or denominators smaller than this value are treated as zero to avoid numerical instability.
+</Note>
+
+---
+
+## Ray Tests
+
+### RayPlane
+
+```csharp
+public static bool RayPlane(
+    Float3 rayOrigin,
+    Float3 rayDir,        // normalized
+    Float3 planeNormal,   // normalized
+    float  planeD,        // dot(Normal, PointOnPlane)
+    out float distance)
+```
+
+Returns `true` if the ray intersects the plane in the forward direction (`distance ≥ 0`). The plane is specified in `dot(Normal, point) = D` form. Use `Plane.Normal` and `Plane.D` directly.
+
+---
+
+### RayTriangle
+
+```csharp
+public static bool RayTriangle(
+    Float3 rayOrigin,
+    Float3 rayDir,        // normalized
+    Float3 v0, Float3 v1, Float3 v2,
+    out float distance,
+    out float u,
+    out float v)
+```
+
+Möller–Trumbore ray–triangle intersection. Tests both front and back faces. Returns the barycentric coordinates `u` and `v` of the hit point; the third coordinate is `w = 1 − u − v`. The intersection point in world space is:
+
+```csharp
+Float3 hitPoint = rayOrigin + rayDir * distance;
+// or equivalently:
+Float3 hitPoint = (1 - u - v) * v0 + u * v1 + v * v2;
+```
+
+---
+
+### RayAABB
+
+```csharp
+public static bool RayAABB(
+    Float3 rayOrigin,
+    Float3 rayDir,        // does NOT need to be normalized
+    Float3 boxMin,
+    Float3 boxMax,
+    out float tMin,
+    out float tMax)
+```
+
+Slab-method ray–AABB intersection. `tMin` is the entry distance and `tMax` is the exit distance. If `tMin < 0` and `tMax ≥ 0`, the ray originates inside the box.
+
+---
+
+### RaySphere
+
+```csharp
+public static bool RaySphere(
+    Float3 rayOrigin,
+    Float3 rayDir,        // normalized
+    Float3 sphereCenter,
+    float  sphereRadius,
+    out float t0,
+    out float t1)
+```
+
+Returns `true` if the ray hits the sphere. `t0 ≤ t1`. If the ray starts inside the sphere, `t0` will be negative.
+
+---
+
+### RayCylinderInfinite
+
+```csharp
+public static bool RayCylinderInfinite(
+    Float3 rayOrigin,    Float3 rayDir,            // normalized
+    Float3 cylinderAxisPoint, Float3 cylinderAxisDir, // normalized
+    float  cylinderRadius,
+    out float t0, out float t1)
+```
+
+Intersection with an **infinite** cylinder. If the ray is parallel and inside the cylinder, `t0 = -∞` and `t1 = +∞`.
+
+---
+
+### RayCylinderCapped
+
+```csharp
+public static bool RayCylinderCapped(
+    Float3 rayOrigin, Float3 rayDir,  // normalized
+    Float3 capA_Center,               // center of first end cap
+    Float3 capB_Center,               // center of second end cap
+    float  radius,
+    out float distance)
+```
+
+Intersection with a finite capped cylinder. `distance` is the smallest non-negative hit distance (body or cap).
+
+---
+
+## Overlap Tests
+
+These methods return a simple `bool` — no distance or point data — and are optimized for high-frequency culling passes.
+
+### Sphere–Sphere
+
+```csharp
+public static bool SphereSphereOverlap(
+    Float3 centerA, float radiusA,
+    Float3 centerB, float radiusB)
+```
+
+True when `distanceSq(centerA, centerB) ≤ (radiusA + radiusB)²`.
+
+---
+
+### AABB–AABB
+
+```csharp
+public static bool AABBAABBOverlap(
+    Float3 minA, Float3 maxA,
+    Float3 minB, Float3 maxB)
+```
+
+Separating-axis test on all three axes.
+
+---
+
+### Sphere–AABB
+
+```csharp
+public static bool SphereAABBOverlap(
+    Float3 sphereCenter, float sphereRadius,
+    Float3 boxMin, Float3 boxMax)
+```
+
+Finds the closest point on the AABB to the sphere center and compares the squared distance to `radius²`.
+
+---
+
+### Triangle–Sphere / Triangle–AABB
+
+```csharp
+public static bool TriangleSphereOverlap(
+    Float3 v0, Float3 v1, Float3 v2,
+    Float3 sphereCenter, float sphereRadius)
+
+public static bool TriangleAABBOverlap(
+    Float3 v0, Float3 v1, Float3 v2,
+    Float3 boxMin, Float3 boxMax)
+```
+
+Both are backed by `GJK.Intersects`.
+
+---
+
+### Triangle–Triangle
+
+```csharp
+public static bool TriangleTriangle(
+    Float3 a0, Float3 a1, Float3 a2,
+    Float3 b0, Float3 b1, Float3 b2)
+```
+
+A combined algorithm: quick AABB early-out, then normal projections, then a full SAT test over all 9 edge-cross-product axes.
+
+---
+
+### Line Segment Overlaps
+
+```csharp
+public static bool LineSegmentSphereOverlap(
+    Float3 segStart, Float3 segEnd,
+    Float3 sphereCenter, float sphereRadius)
+
+public static bool LineSegmentAABBOverlap(
+    Float3 segStart, Float3 segEnd,
+    Float3 boxMin, Float3 boxMax)
+
+public static bool LineSegmentTriangleOverlap(
+    Float3 segStart, Float3 segEnd,
+    Float3 v0, Float3 v1, Float3 v2)
+
+public static bool LineSegmentLineSegmentOverlap(
+    Float3 seg1Start, Float3 seg1End,
+    Float3 seg2Start, Float3 seg2End)
+```
+
+---
+
+### Frustum Containment and Overlap
+
+```csharp
+// Point inside all 6 planes
+public static bool FrustumContainsPoint(
+    Float3[] planeNormals, float[] planeDs, Float3 point)
+
+// Sphere not completely behind any plane
+public static bool FrustumIntersectsSphere(
+    Float3[] planeNormals, float[] planeDs,
+    Float3 sphereCenter, float sphereRadius)
+
+// AABB not completely behind any plane (p-vertex test)
+public static bool FrustumIntersectsAABB(
+    Float3[] planeNormals, float[] planeDs,
+    Float3 boxMin, Float3 boxMax)
+
+// GJK-backed overlap tests for other shape combinations
+public static bool FrustumTriangleOverlap(Frustum frustum, Float3 v0, Float3 v1, Float3 v2)
+public static bool FrustumLineSegmentOverlap(Frustum frustum, Float3 segStart, Float3 segEnd)
+public static bool FrustumFrustumOverlap(Frustum frustumA, Frustum frustumB)
+```
+
+The `FrustumContainsPoint`, `FrustumIntersectsSphere`, and `FrustumIntersectsAABB` methods take raw arrays of plane normals and D values. Pass `frustum.Planes[i].Normal` and `frustum.Planes[i].D` arrays, or use the higher-level methods on the `Frustum` struct itself (`frustum.Contains(point)`, etc.).
+
+---
+
+### Cone Overlaps
+
+```csharp
+public static bool ConeSphereOverlap(Cone cone, Float3 sphereCenter, float sphereRadius)
+public static bool ConeAABBOverlap(Cone cone, Float3 boxMin, Float3 boxMax)
+public static bool ConeTriangleOverlap(Cone cone, Float3 v0, Float3 v1, Float3 v2)
+public static bool ConeLineSegmentOverlap(Cone cone, Float3 segStart, Float3 segEnd)
+public static bool ConeFrustumOverlap(Cone cone, Frustum frustum)
+public static bool ConeConeOverlap(Cone coneA, Cone coneB)
+```
+
+All cone overlap tests are backed by `GJK.Intersects`.
+
+---
+
+### 2D Segment–Segment
+
+```csharp
+public static bool SegmentSegment2DOverlap(
+    Float2 p1, Float2 p2,
+    Float2 p3, Float2 p4,
+    out Float2 intersection,
+    out float t)
+```
+
+Intersects two 2D line segments and returns the intersection point and the parameter `t` along the first segment (0–1).
+
+---
+
+## Closest-Point Queries
+
+### ClosestPointOnLineSegmentToPoint
+
+```csharp
+public static void ClosestPointOnLineSegmentToPoint(
+    Float3 segA, Float3 segB,
+    Float3 point,
+    out Float3 closestPoint)
+```
+
+Projects `point` onto the segment and clamps to the endpoints.
+
+---
+
+### DistanceSqPointToLineSegment
+
+```csharp
+public static float DistanceSqPointToLineSegment(
+    Float3 segA, Float3 segB, Float3 point)
+```
+
+Squared distance from a point to a segment (avoids the square root).
+
+---
+
+### ClosestPointOnAABBToPoint
+
+```csharp
+public static void ClosestPointOnAABBToPoint(
+    Float3 point,
+    Float3 boxMin, Float3 boxMax,
+    out Float3 closestPoint)
+```
+
+Component-wise clamping of the point to the box extents.
+
+---
+
+### ClosestPointOnSphereToPoint
+
+```csharp
+public static void ClosestPointOnSphereToPoint(
+    Float3 point,
+    Float3 sphereCenter, float sphereRadius,
+    out Float3 closestPoint)
+```
+
+Projects the point onto the sphere surface. Falls back to `center + (radius, 0, 0)` when the point coincides with the center.
+
+---
+
+### ClosestPointOnTriangleToPoint
+
+```csharp
+public static void ClosestPointOnTriangleToPoint(
+    Float3 point,
+    Float3 v0, Float3 v1, Float3 v2,
+    out Float3 result)
+```
+
+Voronoi-region decomposition; handles all vertex, edge, and face regions correctly.
+
+---
+
+### ClosestPointsLineSegmentLineSegment
+
+```csharp
+public static void ClosestPointsLineSegmentLineSegment(
+    Float3 p1, Float3 q1,   // segment 1
+    Float3 p2, Float3 q2,   // segment 2
+    out Float3 c1, out Float3 c2,
+    out float s, out float t)
+```
+
+Returns the closest pair of points, one on each segment, and their parameters `s` (on segment 1) and `t` (on segment 2).
+
+---
+
+### DistanceSqSegmentSegment
+
+```csharp
+public static float DistanceSqSegmentSegment(
+    Float3 p1, Float3 q1,
+    Float3 p2, Float3 q2)
+```
+
+---
+
+## Signed Distance and Plane Classification
+
+### SignedDistancePointToPlane
+
+```csharp
+public static float SignedDistancePointToPlane(
+    Float3 point,
+    Float3 planeNormal, // normalized
+    float  planeD)
+```
+
+`dot(Normal, point) − D`. Positive on the normal side, negative on the back.
+
+---
+
+### ClosestPointOnPlaneToPoint
+
+```csharp
+public static void ClosestPointOnPlaneToPoint(
+    Float3 point,
+    Float3 planeNormal, float planeD,
+    out Float3 closestPoint)
+```
+
+---
+
+### ClassifyPointToPlane
+
+```csharp
+public enum PlaneIntersectionType { Front, Back, Intersecting }
+
+public static PlaneIntersectionType ClassifyPointToPlane(
+    Float3 point, Float3 planeNormal, float planeD)
+```
+
+Returns `Front` if `signedDist > EPSILON`, `Back` if `< -EPSILON`, otherwise `Intersecting`.
+
+---
+
+### ClassifySphereToPlane / ClassifyAABBToPlane
+
+```csharp
+public static PlaneIntersectionType ClassifySphereToPlane(
+    Float3 sphereCenter, float sphereRadius,
+    Float3 planeNormal, float planeD)
+
+public static PlaneIntersectionType ClassifyAABBToPlane(
+    Float3 boxMin, Float3 boxMax,
+    Float3 planeNormal, float planeD)
+```
+
+---
+
+### Barycentric Utilities
+
+```csharp
+public static void PointTriangleBarycentric(
+    Float3 point, Float3 v0, Float3 v1, Float3 v2,
+    out float u, out float v)
+
+public static bool IsPointInTriangle(float u, float v)
+```
+
+`IsPointInTriangle` returns true when `u ≥ 0`, `v ≥ 0`, and `u + v ≤ 1` (with epsilon tolerance).
+
+---
+
+## Full Example
+
+```csharp
+using Prowl.Vector;
+using Prowl.Vector.Geometry;
+
+// --- Ray-Triangle Test ---
+var rayOrigin    = new Float3(0.5f, 5.0f, 0.5f);
+var rayDirection = new Float3(0.0f, -1.0f, 0.0f); // pointing down
+
+var v0 = new Float3(0, 0, 0);
+var v1 = new Float3(1, 0, 0);
+var v2 = new Float3(0, 0, 1);
+
+if (Intersection.RayTriangle(rayOrigin, rayDirection, v0, v1, v2,
+        out float dist, out float u, out float v))
+{
+    Float3 hit = rayOrigin + rayDirection * dist;
+    Console.WriteLine($"Hit at {hit}, u={u:F3}, v={v:F3}");
+    // Hit at (0.5, 0, 0.5), u=0.500, v=0.500
+}
+
+// --- Sphere-Sphere Overlap ---
+bool touching = Intersection.SphereSphereOverlap(
+    centerA: new Float3(0, 0, 0), radiusA: 2.0f,
+    centerB: new Float3(3, 0, 0), radiusB: 1.5f);
+// touching = true  (distance 3.0 == 2.0 + 1.0 ... wait, 2.0+1.5=3.5 > 3.0)
+Console.WriteLine(touching); // True
+```
+
+<Note>
+All direction vectors passed to ray-intersection methods are assumed to be normalized unless the documentation for that specific overload says otherwise (`RayAABB` explicitly relaxes this requirement). Passing an un-normalized direction to the other ray methods will produce incorrect distances.
+</Note>

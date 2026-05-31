@@ -1,0 +1,54 @@
+---
+title: "Prowl.Vector: 3D 64-bit Mathematics Library for C#"
+sidebarTitle: "Introduction"
+description: "Learn what Prowl.Vector is, why it exists, and how its Unity-inspired API covers vectors, matrices, quaternions, geometry, noise, and collision detection."
+---
+
+Prowl.Vector is a comprehensive 32-bit and 64-bit mathematics library built for the [Prowl Game Engine](https://github.com/ProwlEngine/Prowl.Vector) and available as a standalone NuGet package for any .NET project. It provides the full suite of types a real-time 3D application needs — vectors, matrices, quaternions, geometry primitives, noise functions, and GJK-based collision detection — through an API intentionally modelled on the Unity Game Engine's familiar conventions. Whether you are building a game engine, a physics sandbox, a procedural content tool, or a scientific visualiser, Prowl.Vector gives you double-precision accuracy alongside float and integer variants, all without pulling in any external runtime dependency.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Dual Precision Types" icon="layer-group" href="/installation">
+    Full suites of `Double2/3/4`, `Float2/3/4`, and `Int2/3/4` vector types plus matching `Double4x4`, `Float4x4`, `Double3x3`, `Float3x3`, `Double2x2`, and `Float2x2` matrix types. Pick the precision that fits your workload.
+  </Card>
+  <Card title="Quaternions" icon="rotate" href="/quickstart">
+    A single `Quaternion` struct covers Euler-angle conversions (`FromEuler` / `EulerAngles`), axis-angle construction (`AxisAngle` / `AngleAxis`), spherical interpolation (`Slerp`), normalized lerp (`Nlerp`), look-rotation, and full operator overloads for composing and applying rotations.
+  </Card>
+  <Card title="Geometry & Collision" icon="cube" href="/quickstart">
+    The `Prowl.Vector.Geometry` namespace ships `AABB`, `Sphere`, `Plane`, `Ray`, `Cone`, `Triangle`, `Frustum`, `LineSegment`, and `Spline` primitives, backed by a rich `Intersection` static class and a GJK collision-detection implementation (`GJK.Intersects`).
+  </Card>
+  <Card title="Procedural Mesh" icon="bezier-curve" href="/introduction">
+    `GeometryData` carries mesh data — vertices, normals, UVs, and indices — for wireframe and solid visualization workflows, making it easy to generate and inspect procedural geometry at runtime.
+  </Card>
+  <Card title="Noise Functions" icon="wave-sine" href="/introduction">
+    The `Noise` static class provides Simplex noise (`SNoise`), Classic Perlin noise (`CNoise`), periodic Perlin noise (`PNoise`), and Cellular / Worley noise (`Cellular2D`, `Cellular3D`) in 2-D, 3-D, and 4-D variants — everything you need for procedural terrain, textures, and animation.
+  </Card>
+  <Card title="Random Number Generation" icon="dice" href="/introduction">
+    `RNG` is a fast xoshiro256\*\* pseudo-random number generator. Use `RNG.Shared` for a convenient shared instance or seed your own. It produces doubles, floats, integer ranges, points on a circle or sphere, random colors, and Gaussian-distributed values.
+  </Card>
+</CardGroup>
+
+## Library Structure
+
+Prowl.Vector is organized around two primary namespaces:
+
+| Namespace | Contents |
+|---|---|
+| `Prowl.Vector` | Core math types: `Double2/3/4`, `Float2/3/4`, `Int2/3/4`, `Double4x4`, `Float4x4`, `Double3x3`, `Float3x3`, `Double2x2`, `Float2x2`, `Quaternion`, `Color`, `Color32`, `Rect`, `IntRect`, `RNG`, and the `Maths` / `Noise` static helper classes. |
+| `Prowl.Vector.Geometry` | Geometry and spatial primitives: `AABB`, `Frustum`, `Plane`, `Ray`, `Sphere`, `Cone`, `Triangle`, `LineSegment`, `Spline`, `Transform2D`, `Transform3D`, `GeometryData`, the `Intersection` static class, the `IBoundingShape` interface, and the `GJK` collision detector. |
+
+Add `using Prowl.Vector;` for all core math work. Add `using Prowl.Vector.Geometry;` when you need geometric primitives, intersection tests, or GJK collision detection.
+
+## Design Philosophy
+
+Prowl.Vector was shaped by four guiding ideas:
+
+- **Unity-inspired API.** Method names, static factory patterns, and operator overloads deliberately mirror Unity's `UnityEngine` math types so that developers coming from Unity face the shortest possible learning curve.
+- **Double-precision by default.** Engine-level transforms — world positions, camera matrices, physics integrators — accumulate floating-point error over large worlds. `Double3`, `Double4x4`, and friends use 64-bit components to minimize drift. 32-bit `Float*` variants are still available everywhere performance or interop with GPU APIs demands them.
+- **Zero external runtime dependencies.** The library targets the .NET Base Class Library only. There are no third-party runtime packages to resolve, version, or audit.
+- **Broad framework compatibility.** A single NuGet package targets `net6.0`, `net7.0`, `net8.0`, `net9.0`, `net10.0`, and `netstandard2.1`, covering everything from legacy .NET Standard libraries to the latest .NET releases.
+
+<Note>
+  Prowl.Vector is part of the Prowl Game Engine and is released under the **MIT License**. You are free to use, modify, and distribute it in commercial and open-source projects alike. See the `LICENSE` file in the repository root for the full license text.
+</Note>

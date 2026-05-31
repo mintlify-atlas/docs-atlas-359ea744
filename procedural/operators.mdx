@@ -1,0 +1,378 @@
+---
+title: "GeometryOperators: Mesh Editing and Refinement"
+sidebarTitle: "Operators"
+description: "Transform GeometryData meshes with operators: Subdivide, Extrude, Inset, Bevel, SplitFace, SplitEdge, Merge, Weld, Triangulate, and BisectPlane."
+---
+
+`GeometryOperators` (in `Prowl.Vector.Geometry`) is a static class providing mesh-editing operations that work directly on `GeometryData`. Most operators modify the mesh **in-place**; a few return new topology elements. All operators preserve custom attributes where possible, using linear interpolation for new vertices.
+
+<Warning>
+CSG operations (via `GeometryCSG`) require every face to be a triangle. Always call `GeometryOperators.Triangulate(mesh)` before passing geometry to any `GeometryCSG` method.
+</Warning>
+
+---
+
+## Transform Utilities
+
+These fundamental operators move geometry without changing topology.
+
+### Scale
+
+```csharp
+public static void Scale(GeometryData mesh, float scale)
+public static void ScaleFace(GeometryData mesh, GeometryData.Face face, float scale)
+```
+
+`Scale` multiplies every vertex position from the origin. `ScaleFace` scales vertices of a single face toward/away from that face's center.
+
+### Translate
+
+```csharp
+public static void Translate(GeometryData mesh, Float3 offset)
+public static void TranslateFaces(GeometryData mesh, IEnumerable<GeometryData.Face> faces, Float3 offset)
+```
+
+`TranslateFaces` moves only the vertices belonging to the supplied faces; shared vertices are moved once.
+
+### Transform (Matrix)
+
+```csharp
+public static void Transform(GeometryData mesh, Float4x4 transform)
+public static void TransformFaces(GeometryData mesh, IEnumerable<GeometryData.Face> faces, Float4x4 transform)
+```
+
+Applies a full `Float4x4` transformation (rotation, scale, translation, shear) to all vertices or to a face subset.
+
+---
+
+## Subdivide
+
+```csharp
+public static void Subdivide(GeometryData mesh)
+```
+
+Splits every face into quads by inserting a vertex at each edge midpoint and at each face center, then reconnecting them. This is a **simple midpoint subdivision** (not Catmull-Clark — no smoothing), but it does interpolate all custom vertex attributes at the new points.
+
+After one pass, every N-gon becomes N quads; after two passes, 4N quads, and so on. Topology after subdivision consists entirely of quads.
+
+```csharp
+var box = GeometryGenerator.Box(new Float3(1, 1, 1));
+
+// One subdivision: 6 faces → 24 quads
+GeometryOperators.Subdivide(box);
+
+// Two subdivisions: 24 quads → 96 quads
+GeometryOperators.Subdivide(box);
+```
+
+---
+
+## SquarifyQuads
+
+```csharp
+public static void SquarifyQuads(GeometryData mesh, float rate = 1.0f, bool uniformLength = false)
+```
+
+Iteratively adjusts quad vertices to make faces more square. Call after subdivision passes. `rate` controls convergence speed; `uniformLength` also attempts to equalize quad sizes across the mesh.
+
+```csharp
+GeometryOperators.Subdivide(box);
+GeometryOperators.SquarifyQuads(box, rate: 1.0f);
+```
+
+---
+
+## Extrude Faces
+
+```csharp
+public static void ExtrudeFaces(GeometryData mesh, IEnumerable<GeometryData.Face> facesToExtrude,
+    float distance, ExtrudeMode mode = ExtrudeMode.AlongNormals)
+```
+
+Extrudes a set of faces outward (positive `distance`) or inward (negative `distance`) by duplicating them, offsetting the copies, and stitching wall quads between the original boundary edges and the new faces.
+
+| Parameter          | Type                               | Description                                                       |
+|--------------------|------------------------------------|-------------------------------------------------------------------|
+| `facesToExtrude`   | `IEnumerable<GeometryData.Face>`   | The faces to extrude                                              |
+| `distance`         | `float`                            | Extrusion amount; positive = outward along normal                 |
+| `mode`             | `ExtrudeMode`                      | Vertex sharing strategy (see below)                               |
+
+**`ExtrudeMode` values:**
+
+| Value            | Behaviour                                                                                         |
+|------------------|---------------------------------------------------------------------------------------------------|
+| `AlongNormals`   | Each new vertex moves along the averaged normal of all selected faces sharing it (default)        |
+| `AverageNormal`  | All new vertices move along the single average normal of the entire selection                     |
+| `PerFace`        | Each face gets its own copy of vertices; faces are fully independent, no vertex sharing           |
+
+```csharp
+var box = GeometryGenerator.Box(new Float3(1, 1, 1));
+
+// Extrude the top face outward by 0.5 units
+var topFace = box.Faces[4]; // Depends on face ordering — identify by Normal()
+GeometryOperators.ExtrudeFaces(box, new[] { topFace }, distance: 0.5f);
+```
+
+---
+
+## Inset Faces
+
+```csharp
+public static void InsetFaces(GeometryData mesh, IEnumerable<GeometryData.Face> facesToInset,
+    float thickness, InsetMode mode = InsetMode.Shared)
+```
+
+Shrinks faces inward toward their centers, creating a border of wall quads between the original face boundary and the smaller inset face.
+
+| Parameter        | Type                               | Description                                                       |
+|------------------|------------------------------------|-------------------------------------------------------------------|
+| `facesToInset`   | `IEnumerable<GeometryData.Face>`   | The faces to inset                                                |
+| `thickness`      | `float`                            | Inset amount in `[0, 1]`: 0 = no change, 1 = full collapse to center |
+| `mode`           | `InsetMode`                        | Vertex sharing strategy                                           |
+
+**`InsetMode` values:**
+
+| Value      | Behaviour                                                                                                 |
+|------------|-----------------------------------------------------------------------------------------------------------|
+| `Shared`   | Vertices shared between adjacent selected faces move along their shared edge toward the edge midpoint     |
+| `PerFace`  | Each face shrinks independently toward its own center; no vertex sharing                                  |
+
+```csharp
+// Inset all faces of a box by 20%
+GeometryOperators.InsetFaces(box, box.Faces.ToList(), thickness: 0.2f);
+```
+
+---
+
+## Bevel Vertices
+
+```csharp
+public static void BevelVertices(GeometryData mesh, IEnumerable<GeometryData.Vertex> verticesToBevel,
+    float offset = 0.3f)
+```
+
+Replaces each beveled vertex with a new polygon (a "bevel face") by placing new vertices at a fractional `offset` along each connected edge, then removing the original vertex.
+
+| Parameter           | Type                               | Description                                                      |
+|---------------------|------------------------------------|------------------------------------------------------------------|
+| `verticesToBevel`   | `IEnumerable<GeometryData.Vertex>` | Vertices to bevel, in order                                      |
+| `offset`            | `float`                            | Fractional distance along each edge `(0, 1)` exclusive          |
+
+`offset` must be strictly between `0.0` and `1.0`; values outside this range throw `ArgumentException`.
+
+```csharp
+// Bevel all corners of a box by placing new vertices 20% along each edge
+GeometryOperators.BevelVertices(box, box.Vertices.ToList(), offset: 0.2f);
+```
+
+---
+
+## Split Edge
+
+```csharp
+public static GeometryData.Vertex SplitEdge(GeometryData mesh, GeometryData.Edge edge,
+    GeometryData.Vertex fromVertex, float factor, out GeometryData.Edge newEdge)
+```
+
+Inserts a new vertex on an existing edge at the fractional position `factor` from `fromVertex`. Adjacent faces are rebuilt to include the new vertex. All vertex attributes are interpolated.
+
+| Parameter    | Type                     | Description                                                        |
+|--------------|--------------------------|--------------------------------------------------------------------|
+| `edge`       | `GeometryData.Edge`      | Edge to split                                                      |
+| `fromVertex` | `GeometryData.Vertex`    | The "from" end of the edge (defines direction for `factor`)        |
+| `factor`     | `float`                  | `[0, 1]` — 0 = at `fromVertex`, 1 = at the other vertex           |
+| `newEdge`    | `out GeometryData.Edge`  | The new edge from the split point to the non-`fromVertex` end      |
+
+**Returns:** the newly created `Vertex`.
+
+```csharp
+var edge = box.Edges[0];
+var newVert = GeometryOperators.SplitEdge(box, edge, edge.Vert1, 0.5f, out var newEdge);
+// newVert is now at the midpoint; two shorter edges replace the original
+```
+
+---
+
+## Split Face
+
+```csharp
+public static GeometryData.Face? SplitFace(GeometryData mesh, GeometryData.Face face,
+    GeometryData.Vertex vert1, GeometryData.Vertex vert2, out GeometryData.Edge? newEdge)
+```
+
+Divides a face along a diagonal between two non-adjacent vertices, producing two smaller faces and one new edge.
+
+| Parameter  | Type                      | Description                                                       |
+|------------|---------------------------|-------------------------------------------------------------------|
+| `face`     | `GeometryData.Face`       | Face to split                                                     |
+| `vert1`    | `GeometryData.Vertex`     | First split vertex (must belong to the face)                      |
+| `vert2`    | `GeometryData.Vertex`     | Second split vertex (must not be adjacent to `vert1` in the face) |
+| `newEdge`  | `out GeometryData.Edge?`  | The edge created along the split line                             |
+
+**Returns:** the second newly created face, or `null` if the split fails (adjacent vertices, vertex not in face, etc.).
+
+```csharp
+// Split a quad into two triangles along its diagonal
+var quad = box.Faces[0];
+var verts = quad.NeighborVertices();
+GeometryOperators.SplitFace(box, quad, verts[0], verts[2], out var splitEdge);
+```
+
+---
+
+## Bisect Plane
+
+```csharp
+public static void BisectPlane(GeometryData mesh, Plane plane,
+    float epsilon = 0.0001f, bool snapToPlane = true)
+```
+
+Cuts the mesh with a plane by splitting every edge that crosses it and every face that straddles it. Geometry on both sides is retained; this is a cut, not a boolean remove.
+
+| Parameter      | Type     | Description                                                              |
+|----------------|----------|--------------------------------------------------------------------------|
+| `plane`        | `Plane`  | The cutting plane (normal + distance)                                    |
+| `epsilon`      | `float`  | Tolerance for classifying a vertex as "on" the plane                     |
+| `snapToPlane`  | `bool`   | If true, vertices very close to the plane are snapped exactly onto it    |
+
+```csharp
+// Cut a sphere horizontally at Y = 0
+var sphere = GeometryGenerator.Sphere(1.0f);
+var cuttingPlane = new Plane(Float3.UnitY, 0.0f); // Normal = up, D = 0
+GeometryOperators.BisectPlane(sphere, cuttingPlane);
+```
+
+---
+
+## Merge
+
+```csharp
+public static void Merge(GeometryData mesh, GeometryData other)
+```
+
+Copies all vertices, edges, and faces from `other` into `mesh`. Attributes are copied via `AttributeLerp`. Note: modifies `Vertex.Id` on the source mesh during the operation.
+
+```csharp
+var boxA = GeometryGenerator.Box(new Float3(1, 1, 1), center: new Float3(-1, 0, 0));
+var boxB = GeometryGenerator.Box(new Float3(1, 1, 1), center: new Float3( 1, 0, 0));
+
+GeometryOperators.Merge(boxA, boxB);
+// boxA now contains the geometry of both boxes
+```
+
+---
+
+## Weld Vertices
+
+```csharp
+public static int WeldVertices(GeometryData mesh, float threshold = 0.0001f)
+public static int WeldVerticesAtPositions(GeometryData mesh, IEnumerable<Float3> targetPositions, float threshold)
+```
+
+Merges vertices that are within `threshold` world-space distance of each other into a single vertex at their averaged position. Attributes are averaged across the cluster. Both faces and edges are rebuilt to reference the merged vertex.
+
+**Returns:** the number of vertices removed.
+
+| Method                       | Description                                                                        |
+|------------------------------|------------------------------------------------------------------------------------|
+| `WeldVertices`               | Scans all pairs globally — use after operations that may leave seam duplicates     |
+| `WeldVerticesAtPositions`    | Welds only vertices near specific target positions — useful for targeted cleanup   |
+
+```csharp
+// Global weld with default tolerance
+int merged = GeometryOperators.WeldVertices(mesh, threshold: 0.001f);
+Console.WriteLine($"Removed {merged} duplicate vertices");
+```
+
+---
+
+## Triangulate
+
+```csharp
+public static void Triangulate(GeometryData mesh)
+```
+
+Converts every face with more than 3 vertices into triangles using **fan triangulation** from the first vertex of each face. Loop attributes (UVs etc.) and face attributes are preserved on all resulting triangles. Triangles are left unchanged.
+
+This is the required preprocessing step before any `GeometryCSG` call.
+
+```csharp
+var box = GeometryGenerator.Box(new Float3(1, 1, 1)); // 6 quad faces
+GeometryOperators.Triangulate(box);                    // 12 triangular faces
+```
+
+---
+
+## Recalculate Normals
+
+```csharp
+public static void RecalculateNormals(GeometryData mesh)
+```
+
+Creates or updates a `"normal"` float-3 vertex attribute by accumulating face normals at each vertex and normalizing. Useful before rendering or normal-dependent operations.
+
+```csharp
+GeometryOperators.RecalculateNormals(mesh);
+
+// Read a vertex normal
+var normal = (GeometryData.FloatAttributeValue)mesh.Vertices[0].Attributes["normal"];
+Float3 n = normal.AsVector3();
+```
+
+---
+
+## Spatial Utilities
+
+### Attribute Lerp
+
+```csharp
+public static void AttributeLerp(GeometryData mesh, GeometryData.Vertex destination,
+    GeometryData.Vertex v1, GeometryData.Vertex v2, float t)
+```
+
+Linearly interpolates all vertex attributes from `v1` to `v2` at parameter `t` and writes the result into `destination`. Used internally by all split/extrude/subdivide operations.
+
+### Nearpoint
+
+```csharp
+public static GeometryData.Vertex? Nearpoint(GeometryData mesh,
+    GeometryData.AttributeValue value, string attrName)
+```
+
+Returns the vertex whose named attribute is closest (by Euclidean distance in attribute space) to the given `value`. Returns `null` if the attribute is not defined.
+
+### Plane-side Removal
+
+```csharp
+public static void RemoveVerticesOnPlanePositiveSide(GeometryData mesh, Plane plane, float epsilon = 0.0001f)
+public static void RemoveVerticesOnPlaneNegativeSide(GeometryData mesh, Plane plane, float epsilon = 0.0001f)
+```
+
+Removes all vertices (and connected edges/faces) on the specified side of `plane`. Vertices exactly on the plane are retained. Useful for generating half-meshes or clip volumes.
+
+---
+
+## Complete Example: Box → Subdivide → Extrude → Triangulate
+
+```csharp
+using Prowl.Vector;
+using Prowl.Vector.Geometry;
+using System.Linq;
+
+// 1. Start with a unit box
+var mesh = GeometryGenerator.Box(new Float3(1, 1, 1));
+
+// 2. Subdivide once for more detail
+GeometryOperators.Subdivide(mesh);
+
+// 3. Extrude every face outward by 0.1 units
+GeometryOperators.ExtrudeFaces(mesh, mesh.Faces.ToList(), distance: 0.1f);
+
+// 4. Triangulate so the result can be used with CSG or uploaded to GPU
+GeometryOperators.Triangulate(mesh);
+
+// 5. Convert to renderable triangle mesh
+var triMesh = mesh.ToTriangleMesh();
+// triMesh.Vertices -- Float3[]
+// triMesh.Indices  -- uint[]
+```

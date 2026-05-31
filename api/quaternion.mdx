@@ -1,0 +1,311 @@
+---
+title: "Quaternion — 3D Rotation Representation"
+sidebarTitle: "Quaternion"
+description: "API reference for Quaternion: constructors, XYZW fields, EulerAngles, static factory methods, Slerp/Nlerp, LookRotation, and matrix conversions."
+---
+
+## Declaration
+
+```csharp
+[System.Serializable]
+public struct Quaternion : IEquatable<Quaternion>, IFormattable
+```
+
+`Quaternion` represents a 3D rotation as a unit quaternion with components **X, Y, Z** (vector part) and **W** (scalar part). It is the primary rotation primitive in Prowl.Vector — more numerically stable than Euler angles and free of gimbal lock.
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `X` | `float` | X component of the vector part. |
+| `Y` | `float` | Y component of the vector part. |
+| `Z` | `float` | Z component of the vector part. |
+| `W` | `float` | Scalar part of the quaternion. |
+
+---
+
+## Static Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Identity` | `Quaternion` | The identity quaternion `(0, 0, 0, 1)` — represents no rotation. |
+
+---
+
+## Constructors
+
+```csharp
+// From four explicit components
+Quaternion(float x, float y, float z, float w)
+
+// From a Float4 (x, y, z, w order)
+Quaternion(Float4 value)
+
+// From a vector part and a scalar part
+Quaternion(Float3 vectorPart, float scalarPart)
+```
+
+---
+
+## Properties
+
+### `EulerAngles`
+
+```csharp
+public Float3 EulerAngles { get; set; }
+```
+
+Gets or sets the rotation expressed as Euler angles in **degrees**, using the **ZXYr** (extrinsic) order. Angles are normalized to `[0, 360)`.
+
+- **Get** — calls `ToEuler(this)` and returns `(pitch, yaw, roll)` in degrees.
+- **Set** — calls `FromEuler(value)` and replaces `this`.
+
+<Warning>
+Euler angles are lossy at singularities (looking straight up or down). Prefer storing rotations as `Quaternion` and only converting to/from Euler angles at the UI layer.
+</Warning>
+
+### Indexer `this[int index]`
+
+```csharp
+public float this[int index] { get; set; }
+```
+
+Accesses components by index: `0` → X, `1` → Y, `2` → Z, `3` → W. Throws `IndexOutOfRangeException` for any other value.
+
+---
+
+## Static Factory Methods
+
+### `FromEuler`
+
+```csharp
+public static Quaternion FromEuler(Float3 euler)
+public static Quaternion FromEuler(float x, float y, float z)
+```
+
+Creates a quaternion from Euler angles in **degrees** (`x` = pitch, `y` = yaw, `z` = roll). Uses the ZXYr convention internally.
+
+---
+
+### `AxisAngle`
+
+```csharp
+public static Quaternion AxisAngle(Float3 axis, float angle)
+```
+
+Creates a quaternion representing a rotation of `angle` **radians** around the given (normalized) `axis`.
+
+---
+
+### `AngleAxis`
+
+```csharp
+public static Quaternion AngleAxis(float angle, Float3 axis)
+```
+
+Convenience overload of `AxisAngle` with the parameter order swapped (`angle` first, then `axis`). Identical result.
+
+---
+
+### `LookRotation`
+
+```csharp
+public static Quaternion LookRotation(Float3 forward, Float3 up)
+```
+
+Creates a quaternion that rotates so the local Z axis points along `forward` and the local Y axis is as close to `up` as possible. `forward` is normalized internally. Falls back to `Float3.UnitX` as the right vector when `forward` and `up` are parallel.
+
+---
+
+### `FromMatrix`
+
+```csharp
+public static Quaternion FromMatrix(Float4x4 m)
+public static Quaternion FromMatrix(Float3x3 m)
+```
+
+Extracts a rotation quaternion from an orthonormal rotation matrix. For `Float4x4`, only the upper-left 3×3 is used.
+
+---
+
+### `RotateX / RotateY / RotateZ`
+
+```csharp
+public static Quaternion RotateX(float angle)
+public static Quaternion RotateY(float angle)
+public static Quaternion RotateZ(float angle)
+```
+
+Creates a quaternion for a pure rotation around one of the cardinal axes. `angle` is in **radians**.
+
+---
+
+## Instance Methods
+
+### `Normalize()` / `Inverse()`
+
+These are accessed via the equivalent **static** overloads below. There are no mutating instance methods; `Quaternion` is a value type — assign the result.
+
+---
+
+## Static Methods
+
+### Normalize / NormalizeSafe
+
+```csharp
+public static Quaternion Normalize(Quaternion q)
+public static Quaternion NormalizeSafe(Quaternion q)
+public static Quaternion NormalizeSafe(Quaternion q, Quaternion defaultValue)
+```
+
+Returns a unit-length quaternion. `NormalizeSafe` returns `Identity` (or `defaultValue`) when the input length is too small to safely normalize.
+
+---
+
+### `Inverse`
+
+```csharp
+public static Quaternion Inverse(Quaternion q)
+```
+
+Returns the multiplicative inverse. For unit quaternions this equals the conjugate. Returns `Identity` if the quaternion has near-zero length.
+
+---
+
+### `Conjugate`
+
+```csharp
+public static Quaternion Conjugate(Quaternion q)
+```
+
+Returns `(-X, -Y, -Z, W)`. Equivalent to `Inverse` for unit quaternions and cheaper to compute.
+
+---
+
+### `Dot`
+
+```csharp
+public static float Dot(Quaternion a, Quaternion b)
+```
+
+Returns the four-component dot product. Used internally by `Slerp` and `Angle` to measure similarity.
+
+---
+
+### `Length` / `LengthSquared`
+
+```csharp
+public static float Length(Quaternion q)
+public static float LengthSquared(Quaternion q)
+```
+
+Return the magnitude and squared magnitude of the quaternion respectively.
+
+---
+
+### `Slerp`
+
+```csharp
+public static Quaternion Slerp(Quaternion q1, Quaternion q2, float t)
+```
+
+Spherical linear interpolation along the great arc on the unit 4-sphere. Guarantees **constant angular velocity**. Falls back to `Nlerp` when `q1` and `q2` are nearly identical (dot product > 0.9995) to avoid numerical issues.
+
+---
+
+### `Nlerp`
+
+```csharp
+public static Quaternion Nlerp(Quaternion q1, Quaternion q2, float t)
+```
+
+Normalized linear interpolation. **Faster** than `Slerp` but does not maintain constant angular velocity. Automatically takes the shortest path (negates `q2` when `dot < 0`).
+
+---
+
+### `Angle`
+
+```csharp
+public static float Angle(Quaternion q1, Quaternion q2)
+```
+
+Returns the angle in **radians** between two unit quaternions.
+
+---
+
+### Direction Helpers
+
+```csharp
+public static Float3 Forward(Quaternion q)  // rotates (0, 0, 1)
+public static Float3 Up(Quaternion q)       // rotates (0, 1, 0)
+public static Float3 Right(Quaternion q)    // rotates (1, 0, 0)
+```
+
+Returns the world-space forward, up, or right direction vector after applying rotation `q`.
+
+---
+
+## Operators
+
+| Operator | Description |
+|----------|-------------|
+| `Quaternion * Quaternion` | Compose two rotations. `a * b` applies `b` first, then `a`. |
+| `Quaternion * Float3` | Rotate a 3D vector by the quaternion. Returns `Float3`. |
+| `Quaternion * float` | Scale all four components by a scalar. |
+| `Quaternion + Quaternion` | Component-wise addition. |
+| `Quaternion - Quaternion` | Component-wise subtraction. |
+| `Quaternion / float` | Divide all components by a scalar. |
+| `-Quaternion` | Negate all components. |
+| `==` / `!=` | Exact component-wise equality. |
+| `implicit (Float4)` → `Quaternion` | Implicit conversion from `Float4`. |
+| `explicit Quaternion` → `(Float4)` | Explicit cast to `Float4`. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// --- Build a camera orientation ---
+Float3 target   = new Float3(10f, 0f, 0f);
+Float3 cameraPos = new Float3(0f, 5f, -10f);
+Float3 forward  = Float3.Normalize(target - cameraPos);
+
+// Create the initial rotation pointing at the target
+Quaternion startRot = Quaternion.LookRotation(forward, Float3.UnitY);
+
+// Define a second rotation 45° around the world Y axis
+Quaternion endRot = Quaternion.AxisAngle(Float3.UnitY, Maths.PI / 4f);
+
+// Smoothly interpolate over 60 frames (constant angular velocity)
+for (int frame = 0; frame <= 60; frame++)
+{
+    float t = frame / 60f;
+    Quaternion current = Quaternion.Slerp(startRot, endRot, t);
+
+    Float3 camForward = Quaternion.Forward(current);
+    Float3 camUp      = Quaternion.Up(current);
+    // Use camForward / camUp to build your view matrix ...
+}
+
+// --- Euler angles round-trip ---
+Quaternion rot = Quaternion.FromEuler(30f, 45f, 0f); // degrees
+Float3 euler   = rot.EulerAngles;                     // back to degrees
+Console.WriteLine(euler); // ≈ (30, 45, 0)
+
+// --- Rotate a point ---
+Float3 point   = new Float3(1f, 0f, 0f);
+Float3 rotated = rot * point;
+```
+
+---
+
+## Notes
+
+- `Quaternion` is a **struct** — assignment copies all four components.
+- Always keep rotation quaternions **normalized** (unit length). Methods such as `Slerp`, `Inverse`, and direction helpers assume unit input.
+- `EulerAngles` getter normalizes angles to `[0, 360)`. If you need a signed range, apply `DeltaAngle` or subtract 360 yourself.
+- The multiplication order `a * b` applies rotation `b` first, then `a` — matching standard mathematical convention.

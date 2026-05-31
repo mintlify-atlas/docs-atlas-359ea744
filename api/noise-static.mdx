@@ -1,0 +1,311 @@
+---
+title: "Noise Static Class — Simplex, Perlin, and Cellular Noise"
+sidebarTitle: "Noise"
+description: "Complete API reference for the Noise static partial class — SNoise, CNoise, PNoise, Cellular2D/3D, and periodic simplex variants."
+---
+
+## Declaration
+
+```csharp
+public static partial class Noise
+```
+
+`Noise` is a static partial class that exposes high-quality, GPU-algorithm-style noise functions ported from Stefan Gustavson's canonical WebGL-noise implementations (MIT licensed). The class is split across multiple partial-class files to separate concerns by dimensionality and noise family.
+
+All functions are **stateless** — they produce the same output for the same input, making them safe for parallel use.
+
+---
+
+## Simplex Noise (SNoise)
+
+Simplex noise is the successor to classic Perlin noise. It has lower computational complexity (O(N²) instead of O(N·2^N)) and no visually objectionable directional artifacts.
+
+**Output range:** approximately **[−1, 1]** (not guaranteed to reach the extremes).
+
+---
+
+### `SNoise(Float2)`
+
+```csharp
+public static float SNoise(Float2 v)
+```
+
+2D simplex noise. Uses a triangular lattice with three gradient contributions.
+
+| Parameter | Description |
+|-----------|-------------|
+| `v` | 2D input coordinate. |
+
+**Returns:** `float` ∈ (−1, 1).
+
+---
+
+### `SNoise(Float3)`
+
+```csharp
+public static float SNoise(Float3 v)
+```
+
+3D simplex noise. Uses a tetrahedral lattice with four gradient contributions. Approximately 20% faster than 2D CNoise for equivalent quality.
+
+| Parameter | Description |
+|-----------|-------------|
+| `v` | 3D input coordinate. |
+
+**Returns:** `float` ∈ (−1, 1).
+
+---
+
+### `SNoise(Float4)`
+
+```csharp
+public static float SNoise(Float4 v)
+```
+
+4D simplex noise. Uses a 5-corner simplex lattice. Useful for animated noise (`v.W = time`) or smooth looping noise when used with 3D + time.
+
+| Parameter | Description |
+|-----------|-------------|
+| `v` | 4D input coordinate. |
+
+**Returns:** `float` ∈ (−1, 1).
+
+---
+
+### Output Range Notes
+
+The scaling factors used internally are:
+- 2D: multiplied by `130.0`
+- 3D: multiplied by `105.0`
+- 4D: multiplied by `60.1`
+
+These calibrate the typical output to approximately [−1, 1], but edge cases near corners of the simplex can produce values slightly outside this range.
+
+---
+
+## Classic Perlin Noise (CNoise)
+
+Classic gradient (Perlin) noise uses a hypercube lattice and smooth quintic interpolation (`6t⁵ − 15t⁴ + 10t³`). It produces slightly smoother features than simplex noise and is historically well-understood.
+
+**Output range:** approximately **[−1, 1]**.
+
+---
+
+### `CNoise(Float2)`
+
+```csharp
+public static float CNoise(Float2 P)
+```
+
+2D classic Perlin noise. Uses a 4-corner square lattice. Scaled by `2.3`.
+
+---
+
+### `CNoise(Float3)`
+
+```csharp
+public static float CNoise(Float3 P)
+```
+
+3D classic Perlin noise. Uses an 8-corner cube lattice. Scaled by `2.2`.
+
+---
+
+## Periodic Perlin Noise (PNoise)
+
+Periodic variants of classic Perlin noise. The output tiles seamlessly when the input repeats with the given period. Useful for tileable textures and seamlessly looping animations.
+
+**Output range:** approximately **[−1, 1]** (same scaling as CNoise).
+
+---
+
+### `PNoise(Float2, Float2)`
+
+```csharp
+public static float PNoise(Float2 P, Float2 rep)
+```
+
+2D periodic classic Perlin noise.
+
+| Parameter | Description |
+|-----------|-------------|
+| `P` | 2D input coordinate. |
+| `rep` | Period vector. The noise tiles when `P` repeats by `rep`. |
+
+**Example:** `PNoise(uv * 4f, new Float2(4f))` produces a 2D texture that tiles every 4 units.
+
+---
+
+### `PNoise(Float3, Float3)`
+
+```csharp
+public static float PNoise(Float3 P, Float3 rep)
+```
+
+3D periodic classic Perlin noise.
+
+| Parameter | Description |
+|-----------|-------------|
+| `P` | 3D input coordinate. |
+| `rep` | Period vector for each axis independently. |
+
+---
+
+## Cellular Noise (Worley Noise)
+
+Cellular noise (also called Worley or Voronoi noise) partitions space into feature-point cells. It returns a `Float2` containing the distances to the **two nearest** feature points (F1 and F2) which can be combined to produce stone, leather, cracked-earth, or foam patterns.
+
+**Output range:** `Float2` with components in approximately **[0, 1]** (square-root distances, not squared).
+
+---
+
+### `Cellular2D(Float2)`
+
+```csharp
+public static Float2 Cellular2D(Float2 P)
+```
+
+2D cellular noise using a 3×3 grid search window. Returns the **square-root** distances to the two nearest feature points.
+
+| Parameter | Description |
+|-----------|-------------|
+| `P` | 2D input coordinate. |
+
+**Returns:** `Float2(F1, F2)` where `F1 ≤ F2` are Euclidean distances.
+
+| Component | Description |
+|-----------|-------------|
+| `.X` | F1 — distance to nearest feature point. |
+| `.Y` | F2 — distance to second-nearest feature point. |
+
+---
+
+### `Cellular3D(Float3)`
+
+```csharp
+public static Float2 Cellular3D(Float3 P)
+```
+
+3D cellular noise (Worley noise) using a 3×3×3 search window. More expensive than 2D but produces volumetric cell patterns.
+
+| Parameter | Description |
+|-----------|-------------|
+| `P` | 3D input coordinate. |
+
+**Returns:** `Float2(F1, F2)` — Euclidean distances to the two nearest feature points.
+
+---
+
+## Common Usage Patterns
+
+### Noise Combination
+
+```csharp
+// F2 − F1 gives a thin border between cells (veins / cracks)
+Float2 cell = Noise.Cellular2D(uv * 8f);
+float border = cell.Y - cell.X;
+
+// F1 alone gives classic Voronoi fill
+float voronoi = cell.X;
+```
+
+### Animated Simplex Noise
+
+```csharp
+// Use the 4th dimension as time for smooth temporal animation
+float animated = Noise.SNoise(new Float4(x, y, z, time * 0.5f));
+```
+
+### Tileable Texture
+
+```csharp
+Float2 rep = new Float2(8f, 8f);
+float tile = Noise.PNoise(uv * 8f, rep);
+```
+
+---
+
+## Code Examples
+
+### Fractal Brownian Motion (FBM)
+
+```csharp
+using Prowl.Vector;
+
+float FBM(Float2 p, int octaves = 6)
+{
+    float value    = 0f;
+    float amplitude = 0.5f;
+    float frequency = 1f;
+
+    for (int i = 0; i < octaves; i++)
+    {
+        value     += amplitude * Noise.SNoise(p * frequency);
+        frequency *= 2f;
+        amplitude *= 0.5f;
+    }
+    return value;
+}
+
+// Use the FBM to drive a height-map
+for (int y = 0; y < height; y++)
+for (int x = 0; x < width; x++)
+{
+    Float2 uv = new Float2(x, y) / new Float2(width, height);
+    float h = FBM(uv * 4f);
+    heightmap[y, x] = Maths.Remap(h, -1f, 1f, 0f, 1f);
+}
+```
+
+### Cellular Crack Pattern
+
+```csharp
+using Prowl.Vector;
+
+float CrackPattern(Float2 uv)
+{
+    Float2 f = Noise.Cellular2D(uv * 6f);
+    float border = f.Y - f.X;   // thin at cell borders
+    return Maths.Saturate(border * 4f);
+}
+```
+
+### 3D Volumetric Simplex
+
+```csharp
+using Prowl.Vector;
+
+float CloudDensity(Float3 worldPos, float time)
+{
+    // Layer two octaves of 3D simplex noise
+    float n1 = Noise.SNoise(worldPos * 0.5f + new Float3(0f, 0f, time * 0.1f));
+    float n2 = Noise.SNoise(worldPos * 1.2f - new Float3(time * 0.05f, 0f, 0f));
+    return Maths.Saturate((n1 * 0.6f + n2 * 0.4f + 0.3f));
+}
+```
+
+### Tileable Perlin Texture
+
+```csharp
+using Prowl.Vector;
+
+// 128×128 texture that tiles seamlessly
+var pixels = new float[128, 128];
+Float2 rep = new Float2(8f);
+
+for (int y = 0; y < 128; y++)
+for (int x = 0; x < 128; x++)
+{
+    Float2 uv = new Float2(x, y) / 128f * 8f;
+    pixels[y, x] = Maths.Remap(Noise.PNoise(uv, rep), -1f, 1f, 0f, 1f);
+}
+```
+
+---
+
+## Notes
+
+- All `Noise` functions are **pure** (no state, no allocation). They are safe to call concurrently from multiple threads.
+- The underlying permutation and gradient tables are computed on the fly using polynomial hash functions (`Permute`, `Mod289`, `TaylorInvSqrt`). There is no initialization cost.
+- Attribution: implementations are based on [stegu/webgl-noise](https://github.com/stegu/webgl-noise) by Stefan Gustavson, released under the MIT License.
+- For terrain generation, FBM (Fractal Brownian Motion) layering of SNoise is recommended. For material patterns (leather, stone), cellular noise with `F2 - F1` is the most versatile starting point.

@@ -1,0 +1,91 @@
+---
+title: "Installing Prowl.Vector in Your .NET Project"
+sidebarTitle: "Installation"
+description: "Add Prowl.Vector to any .NET 6, 7, 8, 9, 10 or netstandard2.1 project via NuGet, PackageReference, or direct project reference."
+---
+
+Prowl.Vector is published to [NuGet.org](https://www.nuget.org/packages/Prowl.Vector) as `Prowl.Vector`. It is a pure library package — no native binaries, no generated code step — so installation is a single command regardless of your target framework. The package supports `net6.0`, `net7.0`, `net8.0`, `net9.0`, `net10.0`, and `netstandard2.1`, covering everything from cross-platform standard libraries to the latest .NET releases.
+
+## Install the Package
+
+Choose the method that fits your workflow:
+
+<CodeGroup>
+
+```bash .NET CLI
+dotnet add package Prowl.Vector
+```
+
+```xml PackageReference (csproj)
+<ItemGroup>
+  <PackageReference Include="Prowl.Vector" Version="2.1.1" />
+</ItemGroup>
+```
+
+```powershell Package Manager Console
+Install-Package Prowl.Vector
+```
+
+</CodeGroup>
+
+## Supported Targets
+
+| Target Framework | Minimum Version |
+|---|---|
+| .NET | 6.0 |
+| .NET | 7.0 |
+| .NET | 8.0 |
+| .NET | 9.0 |
+| .NET | 10.0 |
+| .NET Standard | 2.1 |
+
+Any project that targets one of these frameworks — class libraries, console apps, ASP.NET Core services, game engines, or desktop applications — can reference Prowl.Vector without additional configuration.
+
+## Namespaces
+
+After installing the package, add the appropriate `using` directives at the top of each source file:
+
+```csharp
+// Core math types — vectors, matrices, quaternions, colors, noise, RNG, Maths constants
+using Prowl.Vector;
+
+// Geometry and collision types — AABB, Sphere, Ray, Plane, GJK, Intersection, GeometryData …
+using Prowl.Vector.Geometry;
+```
+
+**`Prowl.Vector`** exposes all the fundamental numeric types:
+- Vector types: `Double2`, `Double3`, `Double4`, `Float2`, `Float3`, `Float4`, `Int2`, `Int3`, `Int4`
+- Matrix types: `Double4x4`, `Float4x4`, `Double3x3`, `Float3x3`, `Double2x2`, `Float2x2`
+- Rotation: `Quaternion`
+- Color: `Color` (float RGBA), `Color32` (byte RGBA)
+- Spatial: `Rect`, `IntRect`
+- Utilities: `RNG`, static `Maths`, static `Noise`
+
+**`Prowl.Vector.Geometry`** exposes all spatial and collision types:
+- Primitives: `AABB`, `Frustum`, `Plane`, `Ray`, `Sphere`, `Cone`, `Triangle`, `LineSegment`, `Spline`
+- Transforms: `Transform2D`, `Transform3D`
+- Mesh data: `GeometryData`
+- Collision: `IBoundingShape`, `GJK`
+- Tests: `Intersection` (ray casts, overlap queries, closest-point queries)
+
+## Project Reference (Source Builds)
+
+If you prefer to build Prowl.Vector from source — for example to apply patches, step through the debugger with full source access, or track the latest commits — clone the repository and add a `<ProjectReference>` in place of the NuGet `<PackageReference>`:
+
+```bash
+git clone https://github.com/ProwlEngine/Prowl.Vector.git
+```
+
+Then in your `.csproj`:
+
+```xml
+<ItemGroup>
+  <ProjectReference Include="../Prowl.Vector/Vector/Vector.csproj" />
+</ItemGroup>
+```
+
+Adjust the relative path to match where you cloned the repository. Visual Studio, Rider, and the `dotnet` CLI all support mixed solution graphs containing both NuGet-backed and project-backed references.
+
+<Note>
+  Prowl.Vector has **no external runtime dependencies** beyond the .NET Base Class Library. Once the package (or project reference) is resolved you do not need to install, copy, or ship any additional assemblies.
+</Note>

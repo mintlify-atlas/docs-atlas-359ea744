@@ -1,0 +1,183 @@
+---
+title: "Int2 — 2D Integer Vector"
+sidebarTitle: "Int2"
+description: "API reference for Int2: constructors, fields, static constants, arithmetic and bitwise operators, the Dot static method, and GLSL-style swizzles."
+---
+
+`Int2` is a 2-component vector backed by `int` (32-bit signed integer) values. It is defined in the `Prowl.Vector` namespace and marked `[Serializable]`. Because its components are integers, `Int2` is well-suited for grid coordinates, texture offsets, and discrete spatial indexing.
+
+<Note>
+  `Int2` does **not** provide `Normalize`, `Length`, `Cross`, `Slerp`, or other floating-point geometric methods. Use `Float2` or `Double2` when those operations are required. `Int2` does expose a `Dot` method that returns an `int`.
+</Note>
+
+## Declaration
+
+```csharp
+[Serializable]
+public partial struct Int2 : IEquatable<Int2>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `X` | `int` | The X (horizontal) component. |
+| `Y` | `int` | The Y (vertical) component. |
+
+---
+
+## Static Constants
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `Zero` | `(0, 0)` | The zero vector. |
+| `One` | `(1, 1)` | A vector with all components set to one. |
+| `UnitX` | `(1, 0)` | The unit vector along the X-axis. |
+| `UnitY` | `(0, 1)` | The unit vector along the Y-axis. |
+
+---
+
+## Constructors
+
+| Signature | Description |
+|-----------|-------------|
+| `Int2(int scalar)` | Sets both `X` and `Y` to `scalar`. |
+| `Int2(int x, int y)` | Sets `X` and `Y` individually. |
+| `Int2(Int2 v)` | Copy constructor. |
+| `Int2(int[] array)` | Reads components from an `int[]` of at least length 2. |
+| `Int2(IEnumerable<int> values)` | Reads components from an enumerable of at least 2 elements. |
+| `Int2(ReadOnlySpan<int> span)` | Reads components from a read-only span of at least length 2. |
+| `Int2(Span<int> span)` | Reads components from a span of at least length 2. |
+| `Int2(Float2 v)` | Truncates a `Float2` to integer components (explicit cast). |
+| `Int2(Double2 v)` | Truncates a `Double2` to integer components (explicit cast). |
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `this[int index]` | `int` | Gets or sets a component by index. `0` → `X`, `1` → `Y`. Throws `IndexOutOfRangeException` for any other value. |
+
+---
+
+## Operators
+
+### Arithmetic — vector × vector (component-wise)
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Int2 + Int2` | Component-wise addition. |
+| `-` | `Int2 - Int2` | Component-wise subtraction. |
+| `*` | `Int2 * Int2` | Component-wise multiplication. |
+| `/` | `Int2 / Int2` | Component-wise integer division. |
+| `%` | `Int2 % Int2` | Component-wise remainder. |
+
+### Arithmetic — vector × scalar
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Int2 + int` / `int + Int2` | Adds scalar to each component. |
+| `-` | `Int2 - int` / `int - Int2` | Subtracts scalar from each component (or vice-versa). |
+| `*` | `Int2 * int` / `int * Int2` | Scales each component. |
+| `/` | `Int2 / int` / `int / Int2` | Divides each component by scalar (or divides scalar by each component). |
+| `%` | `Int2 % int` / `int % Int2` | Remainder with scalar. |
+
+### Bitwise
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `&` | `Int2 & Int2` | Component-wise bitwise AND. |
+| `\|` | `Int2 \| Int2` | Component-wise bitwise OR. |
+| `^` | `Int2 ^ Int2` | Component-wise bitwise XOR. |
+| `~` | `~Int2` | Component-wise bitwise NOT. |
+| `<<` | `Int2 << int` | Shifts each component left by the given amount. |
+| `>>` | `Int2 >> int` | Shifts each component right by the given amount. |
+
+### Unary & comparison
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| Unary `-` | `-Int2` | Negates both components. |
+| `==` | `Int2 == Int2` | Component-wise equality. |
+| `!=` | `Int2 != Int2` | Component-wise inequality. |
+
+### Casts
+
+| Conversion | Kind | Description |
+|------------|------|-------------|
+| `Float2` → `Int2` | `explicit` | Truncates float components to `int`. |
+| `Double2` → `Int2` | `explicit` | Truncates double components to `int`. |
+
+---
+
+## Static Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `static int Dot(Int2 x, Int2 y)` | Returns the integer dot product `x.X*y.X + x.Y*y.Y`. |
+
+---
+
+## Swizzles
+
+`Int2` exposes all GLSL-style 2-component swizzle properties (auto-generated). Read-write swizzles reassign the underlying components; read-only swizzles (where the same component appears more than once) are computed getters.
+
+**Examples:**
+
+```csharp
+Int2 v = new Int2(3, 7);
+
+Int2 swapped = v.YX;   // (7, 3)
+Int2 same    = v.XY;   // (3, 7)  — settable
+Int2 xRepeat = v.XX;   // (3, 3)  — get-only
+Int2 yRepeat = v.YY;   // (7, 7)  — get-only
+```
+
+---
+
+## Instance Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `int[] ToArray()` | Returns `[X, Y]` as a new array. |
+| `string ToString()` | Formats as `(X, Y)` using the current culture. |
+| `string ToString(string format)` | Formats each component with the given numeric format string. |
+| `string ToString(string format, IFormatProvider formatProvider)` | Fully customizable format output. |
+| `bool Equals(Int2 other)` | Component-wise equality. |
+| `int GetHashCode()` | Combined hash of both components. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// Tile-map grid coordinates
+Int2 playerTile = new Int2(4, 2);
+Int2 offset     = new Int2(1, 0);  // move right
+
+Int2 newTile = playerTile + offset;  // (5, 2)
+
+// Bitwise masking (e.g. packed flags per axis)
+Int2 flags    = new Int2(0b1010, 0b0110);
+Int2 mask     = new Int2(0b1100, 0b1100);
+Int2 masked   = flags & mask;  // (0b1000, 0b0100)
+
+// Shift for power-of-two scaling
+Int2 tile     = new Int2(3, 5);
+Int2 scaled   = tile << 4;  // multiply each component by 16
+
+// Dot product (e.g. directional cost in a weighted grid)
+Int2 direction = new Int2(1, 0);
+Int2 gradient  = new Int2(3, -1);
+int  cost      = Int2.Dot(direction, gradient);  // 3
+
+Console.WriteLine($"New tile : {newTile}");
+Console.WriteLine($"Masked   : {masked}");
+Console.WriteLine($"Scaled   : {scaled}");
+Console.WriteLine($"Cost     : {cost}");
+```

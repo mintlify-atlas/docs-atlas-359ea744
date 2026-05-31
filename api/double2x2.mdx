@@ -1,0 +1,288 @@
+---
+title: "Double2x2 — 2×2 Double-Precision Matrix"
+sidebarTitle: "Double2x2"
+description: "API reference for Double2x2: constructors, column fields, 2D rotation/scale factory methods, normal transforms, inversion, and matrix arithmetic."
+---
+
+`Double2x2` is a 2×2 double-precision floating-point matrix in the `Prowl.Vector` namespace. It uses **column-major storage** — each of the two column fields (`c0`, `c1`) is a `Double2`. The struct is marked `[Serializable]` and is suited for 2D rotation, scale, and shear operations, as well as the upper-left submatrix of a `Double3x3` in homogeneous 2D contexts.
+
+## Declaration
+
+```csharp
+[System.Serializable]
+public partial struct Double2x2 : System.IEquatable<Double2x2>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `c0` | `Double2` | Column 0 — stores `(m00, m10)` (X-axis basis). |
+| `c1` | `Double2` | Column 1 — stores `(m01, m11)` (Y-axis basis). |
+
+Storage is column-major: `this[row, col]` resolves to `this[col][row]`. The layout in memory is `c0.X, c0.Y, c1.X, c1.Y`.
+
+---
+
+## Static Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Double2x2.Identity` | Diagonal `(1, 1)` | Multiplicative identity — no transform. |
+| `Double2x2.Zero` | All zeros | A zeroed matrix. |
+
+```csharp
+Double2x2 m = Double2x2.Identity;
+```
+
+---
+
+## Constructors
+
+### From two column vectors
+
+```csharp
+public Double2x2(Double2 col0, Double2 col1)
+```
+
+Constructs directly from two pre-built column vectors.
+
+---
+
+### From four scalar values (row-major argument order)
+
+```csharp
+public Double2x2(double m00, double m01, double m10, double m11)
+```
+
+Arguments follow **row-major** reading order (`m{row}{col}`). Stored column-major: `c0 = (m00, m10)`, `c1 = (m01, m11)`.
+
+---
+
+### Broadcast scalar
+
+```csharp
+public Double2x2(double v)
+```
+
+Sets all four elements to `v`.
+
+---
+
+### Widening from Float2x2
+
+```csharp
+public Double2x2(Float2x2 m)
+```
+
+Widens each single-precision column to double. An explicit cast `(Double2x2)float2x2` is also defined.
+
+---
+
+## Properties
+
+### Column indexer
+
+```csharp
+public ref Double2 this[int index]   // index in [0, 1]
+```
+
+Returns a by-reference handle to the column for in-place mutation. Throws `ArgumentOutOfRangeException` for out-of-range indices.
+
+---
+
+### Element indexer
+
+```csharp
+public double this[int row, int column] { get; set; }   // each in [0, 1]
+```
+
+Scalar element access. Resolves to `this[column][row]`.
+
+---
+
+## Instance Methods
+
+### Row accessors
+
+```csharp
+public Double2 GetRow0();
+public Double2 GetRow1();
+
+public void SetRow0(Double2 value);
+public void SetRow1(Double2 value);
+```
+
+Read or write a full row across both columns.
+
+---
+
+### Invert (instance)
+
+```csharp
+public Double2x2 Invert()
+```
+
+Convenience wrapper around the static overload. Returns the inverted matrix or a `NaN`-filled matrix if singular.
+
+---
+
+## Static Factory Methods
+
+### Rotate
+
+```csharp
+public static Double2x2 Rotate(double angle)
+```
+
+Returns a **counter-clockwise** 2D rotation matrix for `angle` radians:
+
+```
+| cos θ  -sin θ |
+| sin θ   cos θ |
+```
+
+---
+
+### Scale
+
+```csharp
+public static Double2x2 Scale(double s)              // uniform
+public static Double2x2 Scale(double x, double y)   // non-uniform
+public static Double2x2 Scale(Double2 v)             // from vector
+```
+
+Returns a diagonal scale matrix. The uniform overload places `s` on both diagonal entries; the non-uniform overloads set `c0.X = x` and `c1.Y = y`.
+
+---
+
+### Transpose
+
+```csharp
+public static Double2x2 Transpose(Double2x2 m)
+```
+
+Returns the transpose — `c0` and `c1` swap their off-diagonal elements. For orthonormal rotation matrices this equals the inverse.
+
+---
+
+### Determinant
+
+```csharp
+public static double Determinant(Double2x2 m)
+```
+
+Computes `m.c0.X * m.c1.Y − m.c1.X * m.c0.Y` (i.e., `ad − bc` in conventional notation).
+
+---
+
+### Invert (static)
+
+```csharp
+public static bool Invert(Double2x2 matrix, out Double2x2 result)
+```
+
+Computes the inverse of a 2×2 matrix using the closed-form formula:
+
+```
+M⁻¹ = (1/det) * | d  -b |
+                  | -c  a |
+```
+
+Returns `true` on success. If `|det| < double.Epsilon`, writes `NaN` to `result` and returns `false`.
+
+---
+
+### TransformNormal
+
+```csharp
+public static Double2 TransformNormal(Double2 normal, Double2x2 matrix)
+```
+
+Transforms a 2D surface normal correctly under non-uniform scale by computing `(M⁻¹)ᵀ · normal` then normalising. Returns the original `normal` unchanged if the matrix is singular.
+
+---
+
+## Operators
+
+| Operator | Signature | Notes |
+|----------|-----------|-------|
+| `*` | `Double2x2 * Double2x2 → Double2x2` | Matrix product. `A * B` applies B first, then A. |
+| `*` | `Double2x2 * Double2 → Double2` | Matrix–vector product. |
+| `==` | `Double2x2 == Double2x2 → bool` | Component-wise equality via `Double2.==`. |
+| `!=` | `Double2x2 != Double2x2 → bool` | Logical negation of `==`. |
+
+### Explicit casts
+
+```csharp
+explicit operator Double2x2(Float2x2 m)   // widening: float → double
+explicit operator Float2x2(Double2x2 m)   // narrowing (on Float2x2 side)
+```
+
+---
+
+## Additional Methods
+
+### ToArray
+
+```csharp
+public double[] ToArray()
+```
+
+Returns a flat `double[4]` in row-major order: `[row * 2 + col]`.
+
+---
+
+### ToString
+
+```csharp
+public override string ToString()
+public string ToString(string format)
+public string ToString(string format, IFormatProvider formatProvider)
+```
+
+Formats the four components grouped by row, e.g. `Double2x2(1, 0,  0, 1)`.
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// 1. 2D rotation by 45 degrees
+double angle = Maths.PI / 4.0;
+Double2x2 rot = Double2x2.Rotate(angle);
+
+// 2. Rotate a 2D direction vector
+var dir = new Double2(1.0, 0.0);
+Double2 rotated = rot * dir;   // (cos45, sin45) ≈ (0.707, 0.707)
+
+// 3. Non-uniform scale
+Double2x2 scale = Double2x2.Scale(3.0, 0.5);
+
+// 4. Combine rotation then scale: scale applied first (column-vector convention)
+Double2x2 rs = rot * scale;
+
+// 5. Transform a normal correctly through a scaled matrix
+var normal  = Double2.Normalize(new Double2(1.0, 1.0));
+Double2 tNormal = Double2x2.TransformNormal(normal, scale); // uses inverse-transpose
+
+// 6. Invert
+if (Double2x2.Invert(rs, out Double2x2 inv))
+{
+    // inv * rs == Identity
+    Double2x2 check = inv * rs;
+}
+
+// 7. Determinant
+double det = Double2x2.Determinant(rot);   // should be 1.0 for a pure rotation
+
+// 8. Transpose (== inverse for orthonormal matrices)
+Double2x2 rotT = Double2x2.Transpose(rot);
+
+// 9. Narrow to Float2x2 for GPU upload
+Float2x2 fRot = (Float2x2)rot;
+```

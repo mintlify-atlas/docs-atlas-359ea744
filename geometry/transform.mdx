@@ -1,0 +1,292 @@
+---
+title: "Transform2D and Transform3D: Position, Rotation, and Scale"
+sidebarTitle: "Transform"
+description: "Use Transform2D and Transform3D to represent and manipulate object position, rotation, and scale in 2D and 3D space."
+---
+
+`Transform2D` and `Transform3D` (in the `Prowl.Vector.Spatial` namespace) are lightweight value types that bundle together position, rotation, and scale into a single convenient wrapper. Both structs provide methods for transforming points and directions, composing with other transforms, and converting to and from matrix representations.
+
+```csharp
+using Prowl.Vector.Spatial;
+```
+
+---
+
+## Transform3D
+
+`Transform3D` stores a 3D transformation as three separate components: a `Float3` position, a `Quaternion` rotation, and a `Float3` scale. This TRS (Translate–Rotate–Scale) decomposition avoids the accumulation of floating-point error that occurs when repeatedly multiplying 4×4 matrices.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `position` | `Float3` | World-space position. |
+| `rotation` | `Quaternion` | Orientation as a standard float-precision quaternion. |
+| `scale` | `Float3` | Per-axis scale factors. |
+
+### Identity
+
+```csharp
+// position = (0,0,0), rotation = identity quaternion, scale = (1,1,1)
+Transform3D t = Transform3D.Identity;
+```
+
+### Constructor
+
+```csharp
+new Transform3D(Float3 position, Quaternion rotation, Float3 scale)
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `EulerAngles` | `Float3` | Rotation expressed in degrees (ZYXr order). Readable and writable. |
+| `Forward` | `Float3` | Local +Z axis in world space. |
+| `Up` | `Float3` | Local +Y axis in world space. |
+| `Right` | `Float3` | Local +X axis in world space. |
+
+### Transforming Points and Directions
+
+```csharp
+// Local → World (applies scale, rotation, then translation)
+Float3 world = transform.TransformPoint(localPoint);
+
+// World → Local (inverse of above)
+Float3 local = transform.InverseTransformPoint(worldPoint);
+
+// Directions: unaffected by position, but affected by rotation
+Float3 worldDir = transform.TransformDirection(localDir);
+Float3 localDir = transform.InverseTransformDirection(worldDir);
+
+// Vectors: affected by rotation and scale, but not position
+Float3 worldVec = transform.TransformVector(localVec);
+Float3 localVec = transform.InverseTransformVector(worldVec);
+```
+
+### Converting To/From Float4x4
+
+```csharp
+// TRS → column-major 4×4 matrix (local-to-world)
+Float4x4 matrix = transform.ToMatrix();
+
+// Inverse TRS → world-to-local matrix (cheaper than matrix.Invert())
+Float4x4 invMatrix = transform.ToInverseMatrix();
+
+// Decompose a valid TRS matrix back into a Transform3D
+Transform3D t = Transform3D.FromMatrix(Float4x4 m);
+```
+
+<Note>
+`FromMatrix` assumes the input is a valid TRS matrix with no shear. Decomposition of matrices with non-uniform shear will produce incorrect results.
+</Note>
+
+### Movement and Rotation Helpers
+
+```csharp
+// Translate relative to local axes (default) or world axes
+transform.Translate(new Float3(0, 0, 1));            // 1 unit forward in local space
+transform.Translate(new Float3(0, 1, 0), relativeToSelf: false); // 1 unit world Y
+
+// Rotate by Euler angles (in degrees)
+transform.Rotate(new Float3(0, 90, 0));              // 90° yaw, local space
+
+// Orbit around a world-space point
+transform.RotateAround(pivot, axis: Float3.UnitY, angleDegrees: 45.0f);
+
+// Face a world target
+transform.LookAt(targetPosition, worldUp: Float3.UnitY);
+```
+
+### Interpolation
+
+```csharp
+Transform3D result = Transform3D.Lerp(a, b, t);
+// position: linear, rotation: Nlerp, scale: linear
+```
+
+### Full Example
+
+```csharp
+using Prowl.Vector;
+using Prowl.Vector.Spatial;
+
+// Create a transform representing an object at (5, 0, 0), rotated 45° around Y, scaled ×2
+var t = new Transform3D(
+    position: new Float3(5, 0, 0),
+    rotation: Quaternion.FromEuler(new Float3(0, 45, 0)),
+    scale:    new Float3(2, 2, 2)
+);
+
+Console.WriteLine(t.Forward); // roughly (0.707, 0, 0.707)
+Console.WriteLine(t.Right);   // roughly (0.707, 0, -0.707)
+
+// Move 1 unit forward in local space
+t.Translate(new Float3(0, 0, 1));
+
+// Convert to a matrix for use in a renderer
+Float4x4 localToWorld = t.ToMatrix();
+```
+
+---
+
+## Transform2D
+
+`Transform2D` represents a full 2D affine transformation as a 3×3 matrix in column-major form:
+
+```
+| A  C  E |
+| B  D  F |
+| 0  0  1 |
+```
+
+The six coefficients `A, B, C, D, E, F` encode rotation, scale, shear, and translation together. Convenience properties decompose them back into human-readable values.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `A` | `float` | Column 0, row 0. |
+| `B` | `float` | Column 0, row 1. |
+| `C` | `float` | Column 1, row 0. |
+| `D` | `float` | Column 1, row 1. |
+| `E` | `float` | Translation X. |
+| `F` | `float` | Translation Y. |
+
+### Identity
+
+```csharp
+Transform2D t = Transform2D.Identity; // A=1, B=0, C=0, D=1, E=0, F=0
+```
+
+### Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Position` | `Float2` | `(E, F)` — translation component. Readable and writable. |
+| `Rotation` | `float` | Rotation angle in **degrees** (`atan2(B, A) * Rad2Deg`). Setting it preserves existing scale and position. |
+| `Scale` | `Float2` | Computed as `(sqrt(A²+B²), sqrt(C²+D²))`. Setting it preserves existing rotation and position. |
+| `Right` | `Float2` | Normalized local +X direction. |
+| `Up` | `Float2` | Normalized local +Y direction. |
+| `IsIdentity` | `bool` | True if the transform equals the identity matrix. |
+| `IsInvertible` | `bool` | True if the determinant is non-zero. |
+
+### Static Factory Methods
+
+```csharp
+Transform2D.CreateTranslation(Float2 translation)
+Transform2D.CreateTranslation(float tx, float ty)
+
+Transform2D.CreateRotation(float angleInDegrees)
+Transform2D.CreateRotationRadians(float angleInRadians)
+
+Transform2D.CreateScale(float s)                 // uniform
+Transform2D.CreateScale(float sx, float sy)      // non-uniform
+
+Transform2D.CreateSkewX(float angleInDegrees)
+Transform2D.CreateSkewY(float angleInDegrees)
+```
+
+### Transforming Points and Directions
+
+```csharp
+// Local → World
+Float2 worldPoint = transform.TransformPoint(localPoint);
+
+// World → Local
+Float2 localPoint = transform.InverseTransformPoint(worldPoint);
+
+// Direction (ignores translation)
+Float2 worldDir = transform.TransformDirection(localDirection);
+Float2 localDir = transform.InverseTransformDirection(worldDirection);
+```
+
+### Mutation Helpers
+
+```csharp
+transform.Translate(new Float2(10, 0));           // translate by (10, 0)
+transform.Rotate(30.0f);                          // rotate 30° around local origin
+transform.RotateAround(pivot, 45.0f);             // rotate 45° around a world pivot
+transform.AddScale(new Float2(2, 2));             // scale up by 2×
+transform.LookAt(targetPosition);                 // orient +X toward the target
+```
+
+### Converting to a 4×4 Matrix
+
+```csharp
+Float4x4 matrix = transform.ToMatrix();
+// Embeds the 2D transform in the XY plane, suitable for 3D rendering pipelines.
+```
+
+### Composition
+
+Transforms compose with the `*` operator. The right-hand transform is applied first:
+
+```csharp
+// Apply scaleT first, then rotateT, then translateT
+Transform2D combined = translateT * rotateT * scaleT;
+```
+
+### Interpolation
+
+```csharp
+Transform2D result = Transform2D.Lerp(start, end, amount);
+// Linear interpolation of all six matrix coefficients.
+```
+
+### Full Example
+
+```csharp
+using Prowl.Vector;
+using Prowl.Vector.Spatial;
+
+// Build a transform: rotate 45°, then translate to (100, 50)
+var t = Transform2D.CreateRotation(45.0f) * Transform2D.CreateTranslation(100, 50);
+
+// Transform a local-space point to world space
+Float2 worldPos = t.TransformPoint(new Float2(10, 0));
+Console.WriteLine(worldPos); // approximately (107, 57) — rotated then translated
+
+// Convert to Float4x4 for use in a 2D renderer
+Float4x4 matrix = t.ToMatrix();
+```
+
+---
+
+## Transforming Points in Bulk
+
+<Tip>
+When you need to transform many points with the same `Transform3D`, convert to a matrix once and reuse it. Creating the matrix from a `Transform3D` involves a quaternion-to-matrix conversion and several multiplications; doing it per-point is wasteful.
+
+```csharp
+Float4x4 mat = transform.ToMatrix();
+
+for (int i = 0; i < points.Length; i++)
+{
+    worldPoints[i] = Float4x4.TransformPoint(points[i], mat);
+}
+```
+</Tip>
+
+---
+
+## Composing Parent and Child Transforms
+
+To compute a child's world-space transform given a parent transform, use `Transform3D.ToMatrix()` and multiply:
+
+```csharp
+Float4x4 parentMatrix = parent.ToMatrix();
+Float4x4 childMatrix  = child.ToMatrix();
+
+// World matrix of child: parent's space → child's local offset
+Float4x4 childWorldMatrix = parentMatrix * childMatrix;
+
+// Decompose back to a Transform3D if needed
+Transform3D childWorld = Transform3D.FromMatrix(childWorldMatrix);
+```
+
+For `Transform2D`, use the `*` operator on the structs directly, since they already represent affine matrices:
+
+```csharp
+Transform2D childWorld = parentTransform * childLocalTransform;
+```

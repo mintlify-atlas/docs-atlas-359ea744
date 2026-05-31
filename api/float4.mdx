@@ -1,0 +1,208 @@
+---
+title: "Float4 — 4D Single-Precision Vector"
+sidebarTitle: "Float4"
+description: "API reference for Float4: constructors, fields, static constants, arithmetic operators, System.Numerics interop, and static methods including Dot, Normalize, Slerp, Reflect, and Refract."
+---
+
+`Float4` is a 4-component vector backed by `float` (32-bit single-precision) values. It is defined in the `Prowl.Vector` namespace and marked `[Serializable]`. It interoperates directly with `System.Numerics.Vector4` via implicit casts and is commonly used for homogeneous coordinates, RGBA colors, and quaternion-like operations.
+
+## Declaration
+
+```csharp
+[Serializable]
+public partial struct Float4 : IEquatable<Float4>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `X` | `float` | The X component. |
+| `Y` | `float` | The Y component. |
+| `Z` | `float` | The Z component. |
+| `W` | `float` | The W component. |
+
+---
+
+## Static Constants
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `Zero` | `(0, 0, 0, 0)` | The zero vector. |
+| `One` | `(1, 1, 1, 1)` | A vector with all components set to one. |
+| `UnitX` | `(1, 0, 0, 0)` | The unit vector along the X-axis. |
+| `UnitY` | `(0, 1, 0, 0)` | The unit vector along the Y-axis. |
+| `UnitZ` | `(0, 0, 1, 0)` | The unit vector along the Z-axis. |
+| `UnitW` | `(0, 0, 0, 1)` | The unit vector along the W-axis. |
+
+---
+
+## Constructors
+
+| Signature | Description |
+|-----------|-------------|
+| `Float4(float scalar)` | Sets all four components to `scalar`. |
+| `Float4(float x, float y, float z, float w)` | Sets `X`, `Y`, `Z`, and `W` individually. |
+| `Float4(Float4 v)` | Copy constructor. |
+| `Float4(float[] array)` | Reads components from a `float[]` of at least length 4. |
+| `Float4(IEnumerable<float> values)` | Reads components from an enumerable of at least 4 elements. |
+| `Float4(ReadOnlySpan<float> span)` | Reads components from a read-only span of at least length 4. |
+| `Float4(Span<float> span)` | Reads components from a span of at least length 4. |
+| `Float4(Float2 xy, float z, float w)` | Constructs from a `Float2` for XY and separate Z/W scalars. |
+| `Float4(float x, Float2 yz, float w)` | Constructs from a separate X, a `Float2` for YZ, and a separate W. |
+| `Float4(float x, float y, Float2 zw)` | Constructs from separate X/Y and a `Float2` for ZW. |
+| `Float4(Float2 xy, Float2 zw)` | Constructs from two `Float2` values. |
+| `Float4(Float3 xyz, float w)` | Constructs from a `Float3` and a separate W scalar. |
+| `Float4(float x, Float3 yzw)` | Constructs from a separate X and a `Float3` for YZW. |
+| `Float4(Double4 v)` | Narrows a `Double4` to single precision (explicit cast). |
+| `Float4(Int4 v)` | Converts an `Int4` to `float` components (explicit cast). |
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `this[int index]` | `float` | Gets or sets a component by index. `0` → `X`, `1` → `Y`, `2` → `Z`, `3` → `W`. Throws `IndexOutOfRangeException` for any other value. |
+
+---
+
+## Operators
+
+### Arithmetic — vector × vector (component-wise)
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Float4 + Float4` | Component-wise addition. |
+| `-` | `Float4 - Float4` | Component-wise subtraction. |
+| `*` | `Float4 * Float4` | Component-wise multiplication. |
+| `/` | `Float4 / Float4` | Component-wise division. |
+| `%` | `Float4 % Float4` | Component-wise remainder. |
+
+### Arithmetic — vector × scalar
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Float4 + float` / `float + Float4` | Adds scalar to each component. |
+| `-` | `Float4 - float` / `float - Float4` | Subtracts scalar from each component (or vice-versa). |
+| `*` | `Float4 * float` / `float * Float4` | Scales each component. |
+| `/` | `Float4 / float` / `float / Float4` | Divides each component by scalar (or divides scalar by each component). |
+| `%` | `Float4 % float` / `float % Float4` | Remainder with scalar. |
+
+### Unary & comparison
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| Unary `-` | `-Float4` | Negates all four components. |
+| `==` | `Float4 == Float4` | Component-wise equality. |
+| `!=` | `Float4 != Float4` | Component-wise inequality. |
+
+### Casts
+
+| Conversion | Kind | Description |
+|------------|------|-------------|
+| `Float4` → `System.Numerics.Vector4` | `implicit` | Interop with the BCL `Vector4` type. |
+| `System.Numerics.Vector4` → `Float4` | `implicit` | Interop with the BCL `Vector4` type. |
+| `Double4` → `Float4` | `explicit` | Narrows double-precision to single-precision. |
+| `Int4` → `Float4` | `explicit` | Converts integer components to `float`. |
+| `Float2` → `Float4` | `explicit` | Extends to 4D with `Z = 0, W = 0`. |
+| `Float3` → `Float4` | `explicit` | Extends to 4D with `W = 0`. |
+| `Float4` → `Float2` | `explicit` | Drops `Z` and `W`. |
+| `Float4` → `Float3` | `explicit` | Drops `W`. |
+
+---
+
+## Static Methods
+
+### Geometric
+
+| Signature | Description |
+|-----------|-------------|
+| `static float Dot(Float4 x, Float4 y)` | Returns `x.X*y.X + x.Y*y.Y + x.Z*y.Z + x.W*y.W`. |
+| `static float Length(Float4 v)` | Returns the Euclidean length (magnitude) of `v`. |
+| `static float LengthSquared(Float4 v)` | Returns the squared length; cheaper than `Length` when only comparison is needed. |
+| `static Float4 Normalize(Float4 v)` | Returns a unit-length copy of `v`, or `Zero` if the vector is near-zero. |
+| `static float Distance(Float4 x, Float4 y)` | Returns the Euclidean distance between `x` and `y`. |
+| `static float DistanceSquared(Float4 x, Float4 y)` | Returns the squared distance between `x` and `y`. |
+| `static float AngleBetween(Float4 a, Float4 b)` | Returns the angle in **radians** between two vectors. |
+| `static bool IsParallel(Float4 a, Float4 b, float tolerance = 1e-6f)` | Returns `true` if the two vectors point in the same or opposite directions within the given tolerance. |
+| `static bool IsPerpendicular(Float4 a, Float4 b, float tolerance = 1e-6f)` | Returns `true` if the dot product is within `tolerance` of zero. |
+
+### Interpolation
+
+| Signature | Description |
+|-----------|-------------|
+| `static Float4 Slerp(Float4 a, Float4 b, float t)` | Spherically interpolates between `a` and `b`; `t` is clamped to `[0, 1]`. |
+| `static Float4 SlerpUnclamped(Float4 a, Float4 b, float t)` | Spherical interpolation without clamping `t`. |
+| `static Float4 MoveTowards(Float4 current, Float4 target, float maxDistanceDelta)` | Moves `current` toward `target` by at most `maxDistanceDelta`. |
+
+### Projection & Reflection
+
+| Signature | Description |
+|-----------|-------------|
+| `static Float4 Project(Float4 a, Float4 b)` | Projects vector `a` onto vector `b`. |
+| `static Float4 ProjectOntoPlane(Float4 vector, Float4 planeNormal)` | Removes the component of `vector` along `planeNormal`. |
+| `static Float4 Reflect(Float4 vector, Float4 normal)` | Reflects `vector` off the surface defined by `normal`. |
+| `static Float4 Refract(Float4 incident, Float4 normal, float eta)` | Computes the refraction direction given an index-of-refraction ratio `eta`. Returns `(0, 0, 0, 0)` on total internal reflection. |
+
+---
+
+## Swizzles
+
+`Float4` exposes all GLSL-style 2-, 3-, and 4-component swizzle properties (auto-generated). Read-write swizzles reassign the underlying components; read-only swizzles (where any component repeats) are computed getters.
+
+**Examples:**
+
+```csharp
+Float4 v = new Float4(1f, 2f, 3f, 4f);
+
+Float2 xy   = v.XY;    // (1f, 2f) — get/set
+Float3 zyx  = v.ZYX;   // (3f, 2f, 1f) — get/set
+Float4 wzyx = v.WZYX;  // (4f, 3f, 2f, 1f) — get/set
+Float4 xxxx = v.XXXX;  // (1f, 1f, 1f, 1f) — get-only
+```
+
+---
+
+## Instance Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `float[] ToArray()` | Returns `[X, Y, Z, W]` as a new array. |
+| `string ToString()` | Formats as `(X, Y, Z, W)` using the current culture. |
+| `string ToString(string format)` | Formats each component with the given numeric format string. |
+| `string ToString(string format, IFormatProvider formatProvider)` | Fully customizable format output. |
+| `bool Equals(Float4 other)` | Component-wise equality. |
+| `int GetHashCode()` | Combined hash of all four components. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+using System.Numerics;
+
+// Homogeneous point (w = 1) and direction (w = 0)
+Float3 pos = new Float3(1f, 2f, 3f);
+Float4 point     = new Float4(pos, 1f);  // w = 1 → point in homogeneous space
+Float4 direction = new Float4(0f, 1f, 0f, 0f);
+
+// Dot product in 4D (e.g. plane equation test)
+float planeDist = Float4.Dot(point, new Float4(0f, 1f, 0f, -2f));
+
+// Normalise as a 4D vector
+Float4 n = Float4.Normalize(point);
+
+// Splat a scalar
+Float4 ones = new Float4(1f);
+
+// Implicit interop with BCL
+System.Numerics.Vector4 bclVec = point;
+
+Console.WriteLine($"Plane dist : {planeDist}");
+Console.WriteLine($"Normalised : {n}");
+Console.WriteLine($"BCL vector : {bclVec}");
+```

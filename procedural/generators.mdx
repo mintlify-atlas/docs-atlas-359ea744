@@ -1,0 +1,306 @@
+---
+title: "GeometryGenerator: Procedural Primitive Creation"
+sidebarTitle: "Generators"
+description: "Generate procedural 3D primitives — box, sphere, cylinder, plane, and more — using the GeometryGenerator static class."
+---
+
+`GeometryGenerator` (in `Prowl.Vector.Geometry`) is a static class with factory methods for common 3D primitives. Every method returns a fully built `GeometryData` object ready for further editing with `GeometryOperators` or boolean operations with `GeometryCSG`.
+
+<Tip>
+All generators return `GeometryData` that can be immediately passed to `GeometryOperators` for further modification — subdivide, extrude, inset, bevel, and so on. Combine generators with operators to build complex shapes from simple primitives.
+</Tip>
+
+---
+
+## Box
+
+```csharp
+public static GeometryData Box(Float3 size, Float3 center = default, Int3 segments = default)
+public static GeometryData Box(float width, float height, float depth)
+```
+
+Creates a rectangular prism (cube or box) centered at `center`.
+
+| Parameter  | Type     | Description                                                           |
+|------------|----------|-----------------------------------------------------------------------|
+| `size`     | `Float3` | Width (X), height (Y), and depth (Z)                                  |
+| `center`   | `Float3` | World-space center; defaults to the origin                            |
+| `segments` | `Int3`   | Per-face subdivision counts (X, Y, Z); minimum 1 on each axis         |
+
+**What it produces:**  
+When `segments` is `(1, 1, 1)` (default), the generator creates exactly 8 vertices and 6 quad faces — one per side. When any segment count exceeds 1, each face is subdivided into a grid of quads using `AddBoxFace`, and duplicate edge-seam vertices are welded automatically via `GeometryOperators.WeldVertices`.
+
+```csharp
+using Prowl.Vector;
+using Prowl.Vector.Geometry;
+
+// Simple unit cube
+var cube = GeometryGenerator.Box(new Float3(1, 1, 1));
+
+// Rectangular prism offset from the origin
+var slab = GeometryGenerator.Box(new Float3(4, 0.2f, 2), center: new Float3(0, 1, 0));
+
+// 3×3 subdivided cube (each face becomes a 3×3 grid of quads)
+var subCube = GeometryGenerator.Box(
+    new Float3(1, 1, 1),
+    segments: new Int3(3, 3, 3));
+```
+
+---
+
+## Plane
+
+```csharp
+public static GeometryData Plane(Float2 size, Float3 center = default, Int2 segments = default, Float3 normal = default)
+public static GeometryData Plane(float size, int segments = 1)
+```
+
+Creates a flat planar grid.
+
+| Parameter   | Type     | Description                                                        |
+|-------------|----------|--------------------------------------------------------------------|
+| `size`      | `Float2` | Width and height of the plane                                      |
+| `center`    | `Float3` | World-space center; defaults to the origin                         |
+| `segments`  | `Int2`   | Grid subdivisions along each axis; minimum 1                       |
+| `normal`    | `Float3` | Up direction of the plane; defaults to `Float3.UnitY` (+Y up)      |
+
+The generator builds a local coordinate frame from `normal`, so you can orient the plane in any direction.
+
+```csharp
+// 2×2 ground plane with 4×4 grid
+var ground = GeometryGenerator.Plane(new Float2(2, 2), segments: new Int2(4, 4));
+
+// Vertical wall (normal pointing along +Z)
+var wall = GeometryGenerator.Plane(
+    new Float2(3, 2),
+    normal: Float3.UnitZ,
+    segments: new Int2(6, 4));
+```
+
+---
+
+## Sphere
+
+```csharp
+public static GeometryData Sphere(float radius, Float3 center = default, int segments = 32, int rings = 16)
+```
+
+Creates a UV sphere with latitude/longitude topology (quads).
+
+| Parameter  | Type     | Description                                                     |
+|------------|----------|-----------------------------------------------------------------|
+| `radius`   | `float`  | Sphere radius                                                   |
+| `center`   | `Float3` | World-space center                                              |
+| `segments` | `int`    | Number of longitudinal slices; minimum 3                        |
+| `rings`    | `int`    | Number of latitudinal rings; minimum 2                          |
+
+Produces `segments × rings` quad faces arranged in a latitude/longitude grid.
+
+```csharp
+// High-resolution sphere
+var sphere = GeometryGenerator.Sphere(1.0f, segments: 32, rings: 16);
+
+// Low-poly sphere for CSG (triangulate before use)
+var lowPoly = GeometryGenerator.Sphere(0.5f, segments: 8, rings: 8);
+GeometryOperators.Triangulate(lowPoly);
+```
+
+---
+
+## Icosphere
+
+```csharp
+public static GeometryData Icosphere(float radius, Float3 center = default, int subdivisions = 2)
+```
+
+Creates a geodesic sphere built from a subdivided icosahedron. All faces are triangles.
+
+| Parameter      | Type     | Description                                                      |
+|----------------|----------|------------------------------------------------------------------|
+| `radius`       | `float`  | Sphere radius                                                    |
+| `center`       | `Float3` | World-space center                                               |
+| `subdivisions` | `int`    | Number of subdivision passes; 0 = raw icosahedron (20 triangles) |
+
+Unlike a UV sphere, icospheres have more evenly distributed vertices and no polar pinching. Because the output is already triangulated, icospheres can be passed directly to `GeometryCSG`.
+
+```csharp
+// Already triangulated — safe for CSG immediately
+var icoA = GeometryGenerator.Icosphere(0.6f, subdivisions: 0);
+var icoB = GeometryGenerator.Icosphere(0.6f, subdivisions: 1);
+
+var union = GeometryCSG.Union(icoA, icoB);
+```
+
+---
+
+## Cylinder
+
+```csharp
+public static GeometryData Cylinder(float radius, float height, Float3 center = default,
+    int segments = 32, int rings = 1, bool capTop = true, bool capBottom = true)
+```
+
+Creates a cylinder with optional top and bottom caps.
+
+| Parameter    | Type     | Description                                                          |
+|--------------|----------|----------------------------------------------------------------------|
+| `radius`     | `float`  | Radius of the circular cross-section                                 |
+| `height`     | `float`  | Total height of the cylinder                                         |
+| `center`     | `Float3` | World-space center                                                   |
+| `segments`   | `int`    | Radial segments around the circumference; minimum 3                  |
+| `rings`      | `int`    | Height-wise subdivisions; minimum 1                                  |
+| `capTop`     | `bool`   | Whether to add a top cap (fan of triangles sharing a center vertex)  |
+| `capBottom`  | `bool`   | Whether to add a bottom cap                                          |
+
+```csharp
+// Solid cylinder with 16 sides
+var cylinder = GeometryGenerator.Cylinder(0.5f, 2.0f, segments: 16);
+
+// Open tube (no caps), 8 sides, 3 rings
+var tube = GeometryGenerator.Cylinder(0.3f, 1.5f, segments: 8, rings: 3,
+    capTop: false, capBottom: false);
+```
+
+---
+
+## Cone
+
+```csharp
+public static GeometryData Cone(float radius, float height, Float3 center = default,
+    int segments = 32, bool capBottom = true)
+```
+
+Creates a cone with a single apex vertex.
+
+| Parameter    | Type     | Description                                          |
+|--------------|----------|------------------------------------------------------|
+| `radius`     | `float`  | Radius of the base ring                              |
+| `height`     | `float`  | Distance from the base to the apex                   |
+| `center`     | `Float3` | World-space position of the base center              |
+| `segments`   | `int`    | Radial segments; minimum 3                           |
+| `capBottom`  | `bool`   | Whether to close the base with an N-gon face         |
+
+```csharp
+var cone = GeometryGenerator.Cone(0.5f, 1.2f, segments: 12);
+```
+
+---
+
+## Torus
+
+```csharp
+public static GeometryData Torus(float majorRadius, float minorRadius, Float3 center = default,
+    int majorSegments = 48, int minorSegments = 24)
+```
+
+Creates a donut-shaped torus with quad faces.
+
+| Parameter       | Type     | Description                                               |
+|-----------------|----------|-----------------------------------------------------------|
+| `majorRadius`   | `float`  | Distance from the torus center to the center of the tube  |
+| `minorRadius`   | `float`  | Radius of the tube itself                                 |
+| `center`        | `Float3` | World-space center                                        |
+| `majorSegments` | `int`    | Segments around the major (outer) ring; minimum 3         |
+| `minorSegments` | `int`    | Segments around the tube; minimum 3                       |
+
+```csharp
+var torus = GeometryGenerator.Torus(
+    majorRadius: 1.0f,
+    minorRadius: 0.3f,
+    majorSegments: 32,
+    minorSegments: 16);
+```
+
+---
+
+## Platonic Solids
+
+### Tetrahedron
+
+```csharp
+public static GeometryData Tetrahedron(float size, Float3 center = default)
+```
+
+Generates a regular tetrahedron (4 triangular faces, 4 vertices). All faces are triangles.
+
+```csharp
+var tetra = GeometryGenerator.Tetrahedron(1.0f);
+```
+
+### Octahedron
+
+```csharp
+public static GeometryData Octahedron(float size, Float3 center = default)
+```
+
+Generates a regular octahedron (8 triangular faces, 6 vertices).
+
+```csharp
+var octa = GeometryGenerator.Octahedron(0.8f);
+```
+
+### Dodecahedron
+
+```csharp
+public static GeometryData Dodecahedron(float size, Float3 center = default)
+```
+
+Generates a regular dodecahedron (12 pentagonal faces, 20 vertices). Faces are pentagons, not triangles.
+
+```csharp
+var dodeca = GeometryGenerator.Dodecahedron(0.7f);
+```
+
+---
+
+## Indexed Mesh
+
+For importing existing geometry or constructing meshes from raw data:
+
+```csharp
+public static GeometryData IndexedMesh(Float3[] vertices, int[] indices, int[]? faceSizes = null)
+public static GeometryData TriangleMesh(Float3[] vertices, int[] triangles)
+```
+
+| Method            | Description                                                                                |
+|-------------------|--------------------------------------------------------------------------------------------|
+| `IndexedMesh`     | Supports variable polygon sizes. If `faceSizes` is null, assumes all faces are triangles.  |
+| `TriangleMesh`    | Convenience wrapper for `IndexedMesh` with purely triangle input.                          |
+
+```csharp
+var positions = new Float3[] {
+    new Float3(0, 0, 0),
+    new Float3(1, 0, 0),
+    new Float3(1, 1, 0),
+    new Float3(0, 1, 0),
+};
+var indices = new int[] { 0, 1, 2, 3 };   // One quad
+var faceSizes = new int[] { 4 };           // Face has 4 vertices
+
+var mesh = GeometryGenerator.IndexedMesh(positions, indices, faceSizes);
+```
+
+---
+
+## Complete Example: Generate, Subdivide, and Render
+
+```csharp
+using Prowl.Vector;
+using Prowl.Vector.Geometry;
+
+// 1. Generate a subdivided box
+var box = GeometryGenerator.Box(
+    new Float3(1, 1, 1),
+    segments: new Int3(2, 2, 2));
+
+// 2. Subdivide once more for extra detail
+GeometryOperators.Subdivide(box);
+
+// 3. Triangulate for rendering or CSG
+GeometryOperators.Triangulate(box);
+
+// 4. Export to a triangle mesh for upload to a GPU buffer
+GeometryData.TriangleMesh tri = box.ToTriangleMesh();
+// tri.Vertices -- Float3[] positions
+// tri.Indices  -- uint[]   triangle indices
+```

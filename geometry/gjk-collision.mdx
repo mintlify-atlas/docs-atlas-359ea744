@@ -1,0 +1,186 @@
+---
+title: "GJK Collision Detection for Any Bounding Shape"
+sidebarTitle: "GJK Collision"
+description: "Use the GJK algorithm to test collision between any two IBoundingShape types — AABB, Sphere, Cone, and custom shapes — with a single method call."
+---
+
+The GJK (Gilbert–Johnson–Keerthi) algorithm is a general-purpose collision-detection algorithm that can determine whether any two convex shapes overlap — without needing to know anything specific about their geometry. Prowl.Vector implements it in the `GJK` static class (`Prowl.Vector.Geometry` namespace). Any pair of types that implement `IBoundingShape` can be tested with a single call.
+
+```csharp
+using Prowl.Vector;
+using Prowl.Vector.Geometry;
+
+bool hit = GJK.Intersects(shapeA, shapeB);
+```
+
+---
+
+## How It Works
+
+GJK operates on the **Minkowski difference** of the two shapes: the set of all points `A − B` where `A` is any point in shape A and `B` is any point in shape B. The two shapes overlap if and only if the origin is inside this Minkowski difference.
+
+Rather than computing the full Minkowski difference (which can be extremely complex), GJK iteratively builds a **simplex** — a point, line, triangle, or tetrahedron — made of support points sampled from the Minkowski difference. At each step it checks whether the current simplex contains the origin. If a support point fails to reach past the origin in the current search direction, the origin cannot be inside the Minkowski difference and no collision exists.
+
+Prowl.Vector's implementation runs for a maximum of **64 iterations** and uses an epsilon of **1e-10f** for degenerate-case detection in the simplex handlers.
+
+---
+
+## The IBoundingShape Interface
+
+```csharp
+public interface IBoundingShape
+{
+    Float3 SupportMap(Float3 direction);
+    GeometryData GetGeometryData(int resolution = 16);
+}
+```
+
+`SupportMap(Float3 direction)` is the only method GJK calls. It must return the point on the shape that is **farthest** in the given direction. The direction does not need to be normalized.
+
+For example, the AABB's support map simply picks the corner that maximizes the dot product with the direction:
+
+```csharp
+// From AABB.cs
+public Float3 SupportMap(Float3 direction)
+{
+    return new Float3(
+        direction.X >= 0 ? Max.X : Min.X,
+        direction.Y >= 0 ? Max.Y : Min.Y,
+        direction.Z >= 0 ? Max.Z : Min.Z
+    );
+}
+```
+
+---
+
+## API
+
+### GJK.Intersects
+
+```csharp
+public static bool Intersects(IBoundingShape shapeA, IBoundingShape shapeB)
+```
+
+Returns `true` if the two shapes overlap (share at least one point). The method is allocation-free; the internal `Simplex` structure is a fixed-size value type stored on the stack.
+
+---
+
+## Usage Examples
+
+### AABB vs Sphere
+
+```csharp
+using Prowl.Vector;
+using Prowl.Vector.Geometry;
+
+var box    = new AABB(new Float3(-1, -1, -1), new Float3(1, 1, 1));
+var sphere = new Sphere(new Float3(1.5f, 0, 0), 0.6f);
+
+bool collides = GJK.Intersects(box, sphere);
+Console.WriteLine(collides); // True  (sphere overlaps the right face)
+```
+
+### AABB vs Cone
+
+```csharp
+var box  = new AABB(new Float3(0, 0, 0), new Float3(2, 2, 2));
+var cone = Cone.FromAxisDirection(
+    apex:          new Float3(1, 5, 1),
+    axisDirection: new Float3(0, -1, 0),
+    height:        4.0f,
+    baseRadius:    0.5f);
+
+bool collides = GJK.Intersects(box, cone);
+// The cone's base center is at (1, 1, 1), inside the box → true
+Console.WriteLine(collides); // True
+```
+
+### Frustum vs Triangle
+
+```csharp
+var frustum = Frustum.FromCamera(
+    position:  new Float3(0, 0, -10),
+    forward:   new Float3(0, 0, 1),
+    up:        new Float3(0, 1, 0),
+    fovY:      Maths.PI / 3,
+    aspect:    16.0f / 9.0f,
+    nearDist:  0.1f,
+    farDist:   100.0f);
+
+var tri = new Triangle(
+    new Float3(-0.5f, -0.5f, 5),
+    new Float3( 0.5f, -0.5f, 5),
+    new Float3( 0.0f,  0.5f, 5));
+
+bool visible = GJK.Intersects(frustum, tri);
+Console.WriteLine(visible); // True — triangle is in front of camera
+```
+
+---
+
+## Implementing a Custom Shape
+
+Any struct or class that implements `IBoundingShape` can participate in GJK tests immediately. The only requirement is a correct `SupportMap` implementation.
+
+```csharp
+using Prowl.Vector;
+using Prowl.Vector.Geometry;
+
+/// <summary>An infinite cylinder capped to a finite height for GJK purposes.</summary>
+public struct CapsuleShape : IBoundingShape
+{
+    public Float3 PointA;   // one end (sphere center A)
+    public Float3 PointB;   // other end (sphere center B)
+    public float  Radius;
+
+    public CapsuleShape(Float3 a, Float3 b, float radius)
+    {
+        PointA = a; PointB = b; Radius = radius;
+    }
+
+    public Float3 SupportMap(Float3 direction)
+    {
+        // Support point = farthest endpoint + radius in that direction
+        float dotA = Float3.Dot(PointA, direction);
+        float dotB = Float3.Dot(PointB, direction);
+        Float3 bestCenter = dotA >= dotB ? PointA : PointB;
+
+        float len = Float3.Length(direction);
+        if (len < float.Epsilon) return bestCenter;
+
+        return bestCenter + (direction / len) * Radius;
+    }
+
+    // Required by the interface; can return empty geometry if not needed.
+    public GeometryData GetGeometryData(int resolution = 16) => new GeometryData();
+}
+
+// Usage:
+var capsule = new CapsuleShape(new Float3(0, 0, 0), new Float3(0, 3, 0), 0.5f);
+var box     = new AABB(new Float3(-1, 1, -1), new Float3(1, 2, 1));
+
+bool hit = GJK.Intersects(capsule, box); // true
+```
+
+---
+
+## Supported Built-in Shapes
+
+The following types in `Prowl.Vector` implement `IBoundingShape` and can be passed directly to `GJK.Intersects`:
+
+| Type | Notes |
+|------|-------|
+| `AABB` | Support map picks the maximizing corner per axis. |
+| `Sphere` | Support map is `Center + normalize(direction) * Radius`. |
+| `Cone` | Support map chooses between the apex and the base-circle edge. |
+| `Frustum` | Support map iterates the 8 corners and returns the best. |
+| `Triangle` | Support map returns the vertex with the highest dot product. |
+| `LineSegment` | Support map returns the endpoint with the higher dot product. |
+
+`Plane` and `Ray` are **not** convex bodies in the GJK sense and do not implement `IBoundingShape`. Use the dedicated methods in the `Intersection` class for plane and ray tests.
+
+---
+
+<Warning>
+GJK as implemented here detects **intersection only**. It does not compute penetration depth, contact normals, or contact points. If you need that information, you must implement EPA (Expanding Polytope Algorithm) on top of the GJK simplex, which is not currently part of Prowl.Vector.
+</Warning>

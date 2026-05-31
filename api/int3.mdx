@@ -1,0 +1,192 @@
+---
+title: "Int3 — 3D Integer Vector"
+sidebarTitle: "Int3"
+description: "API reference for Int3: constructors, fields, static constants, arithmetic and bitwise operators, the Dot static method, and GLSL-style swizzles."
+---
+
+`Int3` is a 3-component vector backed by `int` (32-bit signed integer) values. It is defined in the `Prowl.Vector` namespace and marked `[Serializable]`. It is well-suited for voxel chunk coordinates, 3D grid indices, and other discrete spatial tasks.
+
+<Note>
+  `Int3` does **not** provide `Normalize`, `Length`, `Cross`, `Slerp`, or other floating-point geometric methods. Use `Float3` or `Double3` when those operations are required. `Int3` does expose a `Dot` method that returns an `int`.
+</Note>
+
+## Declaration
+
+```csharp
+[Serializable]
+public partial struct Int3 : IEquatable<Int3>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `X` | `int` | The X component. |
+| `Y` | `int` | The Y component. |
+| `Z` | `int` | The Z component. |
+
+---
+
+## Static Constants
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `Zero` | `(0, 0, 0)` | The zero vector. |
+| `One` | `(1, 1, 1)` | A vector with all components set to one. |
+| `UnitX` | `(1, 0, 0)` | The unit vector along the X-axis. |
+| `UnitY` | `(0, 1, 0)` | The unit vector along the Y-axis. |
+| `UnitZ` | `(0, 0, 1)` | The unit vector along the Z-axis. |
+
+---
+
+## Constructors
+
+| Signature | Description |
+|-----------|-------------|
+| `Int3(int scalar)` | Sets all three components to `scalar`. |
+| `Int3(int x, int y, int z)` | Sets `X`, `Y`, and `Z` individually. |
+| `Int3(Int3 v)` | Copy constructor. |
+| `Int3(int[] array)` | Reads components from an `int[]` of at least length 3. |
+| `Int3(IEnumerable<int> values)` | Reads components from an enumerable of at least 3 elements. |
+| `Int3(ReadOnlySpan<int> span)` | Reads components from a read-only span of at least length 3. |
+| `Int3(Span<int> span)` | Reads components from a span of at least length 3. |
+| `Int3(Int2 xy, int z)` | Constructs from an `Int2` for XY and a separate `z`. |
+| `Int3(int x, Int2 yz)` | Constructs from a separate `x` and an `Int2` for YZ. |
+| `Int3(Float3 v)` | Truncates a `Float3` to integer components (explicit cast). |
+| `Int3(Double3 v)` | Truncates a `Double3` to integer components (explicit cast). |
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `this[int index]` | `int` | Gets or sets a component by index. `0` → `X`, `1` → `Y`, `2` → `Z`. Throws `IndexOutOfRangeException` for any other value. |
+
+---
+
+## Operators
+
+### Arithmetic — vector × vector (component-wise)
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Int3 + Int3` | Component-wise addition. |
+| `-` | `Int3 - Int3` | Component-wise subtraction. |
+| `*` | `Int3 * Int3` | Component-wise multiplication. |
+| `/` | `Int3 / Int3` | Component-wise integer division. |
+| `%` | `Int3 % Int3` | Component-wise remainder. |
+
+### Arithmetic — vector × scalar
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Int3 + int` / `int + Int3` | Adds scalar to each component. |
+| `-` | `Int3 - int` / `int - Int3` | Subtracts scalar from each component (or vice-versa). |
+| `*` | `Int3 * int` / `int * Int3` | Scales each component. |
+| `/` | `Int3 / int` / `int / Int3` | Divides each component by scalar (or divides scalar by each component). |
+| `%` | `Int3 % int` / `int % Int3` | Remainder with scalar. |
+
+### Bitwise
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `&` | `Int3 & Int3` | Component-wise bitwise AND. |
+| `\|` | `Int3 \| Int3` | Component-wise bitwise OR. |
+| `^` | `Int3 ^ Int3` | Component-wise bitwise XOR. |
+| `~` | `~Int3` | Component-wise bitwise NOT. |
+| `<<` | `Int3 << int` | Shifts each component left by the given amount. |
+| `>>` | `Int3 >> int` | Shifts each component right by the given amount. |
+
+### Unary & comparison
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| Unary `-` | `-Int3` | Negates all three components. |
+| `==` | `Int3 == Int3` | Component-wise equality. |
+| `!=` | `Int3 != Int3` | Component-wise inequality. |
+
+### Casts
+
+| Conversion | Kind | Description |
+|------------|------|-------------|
+| `Int2` → `Int3` | `explicit` | Extends to 3D with `Z = 0`. |
+| `Int3` → `Int2` | `explicit` | Drops the `Z` component. |
+| `Float3` → `Int3` | `explicit` | Truncates float components to `int`. |
+| `Double3` → `Int3` | `explicit` | Truncates double components to `int`. |
+
+---
+
+## Static Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `static int Dot(Int3 x, Int3 y)` | Returns the integer dot product `x.X*y.X + x.Y*y.Y + x.Z*y.Z`. |
+
+---
+
+## Swizzles
+
+`Int3` exposes the full set of GLSL-style swizzle properties for all 2- and 3-component permutations (auto-generated). Read-write swizzles reassign the underlying components; read-only swizzles (where any component repeats) are computed getters.
+
+**Examples:**
+
+```csharp
+Int3 v = new Int3(1, 2, 3);
+
+Int2 xy  = v.XY;   // (1, 2)  — get/set
+Int2 zx  = v.ZX;   // (3, 1)  — get/set
+Int3 zyx = v.ZYX;  // (3, 2, 1) — get/set
+Int3 xxx = v.XXX;  // (1, 1, 1) — get-only
+
+// Write-back
+v.YZ = new Int2(10, 20);  // v is now (1, 10, 20)
+```
+
+---
+
+## Instance Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `int[] ToArray()` | Returns `[X, Y, Z]` as a new array. |
+| `string ToString()` | Formats as `(X, Y, Z)` using the current culture. |
+| `string ToString(string format)` | Formats each component with the given numeric format string. |
+| `string ToString(string format, IFormatProvider formatProvider)` | Fully customizable format output. |
+| `bool Equals(Int3 other)` | Component-wise equality. |
+| `int GetHashCode()` | Combined hash of all three components. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// Voxel chunk coordinate helpers
+const int ChunkSize = 16;
+
+Int3 worldVoxel = new Int3(35, 4, -9);
+
+// Convert world voxel → chunk + local voxel
+Int3 chunkCoord = worldVoxel / ChunkSize;            // (2, 0, -1)
+Int3 localVoxel = worldVoxel - chunkCoord * ChunkSize; // (3, 4, 7)
+
+// Neighbour offsets
+Int3[] faceNeighbours = {
+    Int3.UnitX, -Int3.UnitX,
+    Int3.UnitY, -Int3.UnitY,
+    Int3.UnitZ, -Int3.UnitZ,
+};
+
+// Bit-pack a small voxel index (0-15 per axis) into a single int
+Int3 local = new Int3(3, 5, 7);
+Int3 packed = local & new Int3(0xF); // clamp to 4 bits
+int  index  = packed.X | (packed.Y << 4) | (packed.Z << 8);
+
+Console.WriteLine($"Chunk coord : {chunkCoord}");
+Console.WriteLine($"Local voxel : {localVoxel}");
+Console.WriteLine($"Packed index: {index}");
+```

@@ -1,47 +1,152 @@
 ---
-title: "Quickstart"
-description: "Begin with a guide on the fastest path to a successful outcome"
+title: "Get Started with Prowl.Vector"
+sidebarTitle: "Quickstart"
+description: "Install Prowl.Vector and write working vector, matrix, quaternion, and collision examples in under five minutes."
 ---
 
-Describe how someone begins using your product. What is the first thing they need to do? Are there any prerequisites?
-
-A quickstart should take someone from zero to using your product. They'll get a quick win and a sense of what they can accomplish.
-
-## Prerequisites
-
-Before you begin, you must have:
-
-- Requirement one (for example, Node.js 18+, a free account, an API key)
-- Requirement two (for example, a compatible device, a compatible browser, a compatible operating system)
-
-## Get started
+This quickstart walks you from a blank .NET project to running, verified examples covering vectors, matrix transforms, quaternion rotations, and GJK collision detection — all in under five minutes. By the end you will have a solid mental model of the library's main types and where to go next.
 
 <Steps>
-  <Step title="Install">
-    Describe how to install your product or sign up.
+
+  <Step title="Install the Package">
+    Add Prowl.Vector to your project via the .NET CLI:
 
     ```bash
-    npm install your-package
+    dotnet add package Prowl.Vector
     ```
-  </Step>
-  <Step title="Configure">
-    Describe any setup or configuration needed before first use.
 
-    ```bash
-    your-cli init
-    ```
-  </Step>
-  <Step title="Run it">
-    Show the first thing a user does to see it working.
+    Or add the `PackageReference` directly to your `.csproj` file:
 
-    ```bash
-    your-cli start
+    ```xml
+    <ItemGroup>
+      <PackageReference Include="Prowl.Vector" Version="2.1.1" />
+    </ItemGroup>
     ```
   </Step>
+
+  <Step title="Import the Namespaces">
+    Add the two `using` directives at the top of any file that uses the library:
+
+    ```csharp
+    using Prowl.Vector;          // Core types: Double3, Float3, Quaternion, Maths, Noise, RNG …
+    using Prowl.Vector.Geometry; // Geometry types: AABB, Sphere, Ray, GJK, Intersection …
+    ```
+  </Step>
+
+  <Step title="Create and Manipulate Vectors">
+    `Double3` is the primary 3-D vector type. All standard arithmetic operators are overloaded, and a rich set of static methods covers normalization, dot and cross products, distance, and interpolation.
+
+    ```csharp
+    // Construct vectors
+    var v2 = new Double2(1.0, 2.0);
+    var v3 = new Double3(1.0, 2.0, 3.0);
+    var v4 = new Double4(1.0, 2.0, 3.0, 4.0);
+
+    // Float precision variant
+    var fv3 = new Float3(1.0f, 2.0f, 3.0f);
+
+    // Arithmetic operators
+    var sum      = v3 + new Double3(1.0, 1.0, 1.0); // (2, 3, 4)
+    var scaled   = v3 * 2.0;                          // (2, 4, 6)
+    var negated  = -v3;                               // (-1, -2, -3)
+
+    // Static helper methods
+    var normalized = Double3.Normalize(v3);
+    double dot     = Double3.Dot(v3, normalized);
+    Double3 cross  = Double3.Cross(v3, normalized);
+    double dist    = Double3.Distance(v3, Double3.Zero);
+
+    // Lerp between two vectors
+    var midpoint = Maths.Lerp(Double3.Zero, v3, 0.5);
+    ```
+  </Step>
+
+  <Step title="Build Matrix Transforms">
+    `Double4x4` provides factory methods for every common transform: translation, rotation, scale, combined TRS, look-at (view), and perspective / orthographic projection.
+
+    ```csharp
+    // Individual transforms
+    var translation = Double4x4.CreateTranslation(new Double3(1, 2, 3));
+    var rotationY   = Double4x4.RotateY(Maths.PI * 0.5);
+    var scale       = Double4x4.CreateScale(2.0);
+
+    // Combined TRS — position (1,2,3), 45 ° yaw, uniform scale 1
+    var transform = Double4x4.CreateTRS(
+        new Double3(1, 2, 3),
+        Quaternion.FromEuler(0, 45, 0),
+        new Double3(1, 1, 1)
+    );
+
+    // Transform a point or a direction (normal)
+    var eye    = new Double3(0, 5, -10);
+    var target = Double3.Zero;
+    Double3 transformedPoint  = Double4x4.TransformPoint(new Double3(1, 0, 0), transform);
+    Double3 transformedNormal = Double4x4.TransformNormal(Double3.UnitY, transform);
+
+    // View and projection matrices
+    double aspectRatio = 16.0 / 9.0;
+    var view = Double4x4.CreateLookAt(eye, target, Double3.UnitY);
+    var proj = Double4x4.CreatePerspectiveFov(Maths.PI / 4.0, aspectRatio, 0.1, 1000.0);
+    ```
+  </Step>
+
+  <Step title="Apply Quaternion Rotations">
+    `Quaternion` stores rotations as a unit quaternion (X, Y, Z, W). Factory methods accept Euler angles in degrees, axis-angle pairs in radians, or a forward/up pair. The `*` operator applies a rotation to a `Float3` vector.
+
+    ```csharp
+    // Create from Euler angles (degrees: pitch, yaw, roll)
+    var fromEuler = Quaternion.FromEuler(new Float3(30, 45, 0));
+
+    // Create from an axis and an angle (radians)
+    float angle    = Maths.PI / 4.0f;          // 45 °
+    var  fromAxis  = Quaternion.AxisAngle(Float3.UnitY, angle);
+
+    // Build a look-rotation
+    var lookAt = Quaternion.LookRotation(
+        new Float3(0, 0, 1),  // forward
+        Float3.UnitY          // up
+    );
+
+    // Smoothly interpolate between two rotations
+    var q1          = Quaternion.Identity;
+    var q2          = Quaternion.FromEuler(new Float3(0, 180, 0));
+    var halfway     = Quaternion.Slerp(q1, q2, 0.5f);  // constant-velocity
+    var halfwayFast = Quaternion.Nlerp(q1, q2, 0.5f);  // faster, non-constant
+
+    // Apply rotation to a vector via operator overload
+    var direction = new Float3(0, 0, 1);
+    Float3 rotated = fromEuler * direction;
+    ```
+  </Step>
+
+  <Step title="Run a Collision Check">
+    Any type that implements `IBoundingShape` — including `AABB` and `Sphere` — can be tested for intersection using the GJK algorithm. Direct ray and overlap tests are available through the `Intersection` static class.
+
+    ```csharp
+    // GJK collision detection between any two IBoundingShape types
+    var box    = new AABB(new Double3(-1, -1, -1), new Double3(1, 1, 1));
+    var sphere = new Sphere(Double3.Zero, 1.5);
+
+    bool colliding = GJK.Intersects(box, sphere); // true — the sphere overlaps the box
+
+    // Direct ray-AABB test
+    var ray = new Ray(new Double3(0, 5, 0), -Double3.UnitY);
+    bool hit = Intersection.RayAABB(
+        ray.Origin, ray.Direction,
+        box.Min, box.Max,
+        out double t
+    );
+
+    // Sphere-sphere overlap
+    bool spheresOverlap = Intersection.SphereSphereOverlap(
+        Double3.Zero, 1.0,
+        new Double3(1.5, 0, 0), 1.0
+    );
+    ```
+  </Step>
+
 </Steps>
 
 <Tip>
-  Give people a way to get help. This could be a link to a support page, a chat with a customer support agent, or a forum for your product.
-
-  Example: Need help? Reach out to us at [support@yourcompany.com](mailto:support@yourcompany.com).
+  These examples only scratch the surface. Prowl.Vector also includes `Noise` (Simplex, Perlin, Cellular), `RNG` (seeded xoshiro256\*\*), `Maths` (constants, trig, interpolation, remap), color types (`Color`, `Color32`), and 2-D / 3-D transform helpers. Explore the full API in the **API Reference** section of the documentation.
 </Tip>

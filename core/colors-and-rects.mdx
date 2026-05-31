@@ -1,0 +1,349 @@
+---
+title: "Color, Color32, Rect, and IntRect Types"
+sidebarTitle: "Colors & Rects"
+description: "Float RGBA Color and byte RGBA Color32 types, named color constants in Colors, plus Rect and IntRect for 2D rectangle math."
+---
+
+Prowl.Vector provides two complementary color types and two rectangle types for 2D spatial work. `Color` stores RGBA channels as `float` values in the **[0, 1]** range, making it the standard type for shader parameters, material properties, and color math. `Color32` stores the same four channels as `byte` values in the **[0, 255]** range, matching the format of raw pixel data and packed GPU textures. The static `Colors` class is a namespace anchor for W3C-standard named color constants defined directly on `Color`. `Rect` and `IntRect` represent axis-aligned bounding rectangles with float and integer precision respectively, and share a rich set of spatial query methods.
+
+---
+
+## Color
+
+`Color` is a `[StructLayout(LayoutKind.Sequential)]` value struct with four `float` fields.
+
+### Fields
+
+| Field | Type    | Range   | Description                   |
+|-------|---------|---------|-------------------------------|
+| `R`   | `float` | `[0, 1]` | Red channel                  |
+| `G`   | `float` | `[0, 1]` | Green channel                |
+| `B`   | `float` | `[0, 1]` | Blue channel                 |
+| `A`   | `float` | `[0, 1]` | Alpha (opacity) channel      |
+
+A convenience `Grayscale` property returns the perceptual luminance: `0.299 * R + 0.587 * G + 0.114 * B`.
+
+### Constructors
+
+```csharp
+// Float RGBA (most common)
+var red   = new Color(1f, 0f, 0f, 1f);
+
+// Float RGB — alpha defaults to 1
+var green = new Color(0f, 1f, 0f);
+
+// Byte RGBA — automatically divides by 255
+var blue  = new Color((byte)0, (byte)0, (byte)255, (byte)255);
+
+// Byte RGB — alpha defaults to 1
+var white = new Color((byte)255, (byte)255, (byte)255);
+```
+
+### Component Indexer
+
+```csharp
+Color c = new Color(0.2f, 0.4f, 0.6f, 1f);
+float r = c[0]; // 0.2  (R)
+float g = c[1]; // 0.4  (G)
+float b = c[2]; // 0.6  (B)
+float a = c[3]; // 1.0  (A)
+```
+
+### Arithmetic Operators
+
+`Color` supports `+`, `-`, `*`, `/` both with scalars and with other `Color` values, all applied component-wise.
+
+```csharp
+Color base   = new Color(0.5f, 0.5f, 0.5f, 1f);
+Color bright = base * 2f;          // (1, 1, 1, 2) — clamp manually if needed
+Color dimmed = base * 0.5f;        // (0.25, 0.25, 0.25, 0.5)
+Color mixed  = base + new Color(0.1f, 0f, 0f, 0f); // add red tint
+```
+
+### Lerp
+
+Linear interpolation between two colors, clamping `t` to `[0, 1]`.
+
+```csharp
+Color a = Color.Red;
+Color b = Color.Blue;
+
+Color mid   = Color.Lerp(a, b, 0.5f);  // equal mix of red and blue
+Color nearA = Color.Lerp(a, b, 0.1f);  // mostly red
+```
+
+For more perceptually natural blending, use `LerpColorSpace`, which interpolates through HSV space:
+
+```csharp
+Color naturalMid = Color.LerpColorSpace(Color.Red, Color.Yellow, 0.5f);
+```
+
+### Color Adjustments
+
+```csharp
+Color c = new Color(0.6f, 0.3f, 0.1f, 1f);
+
+Color brighter    = Color.Brightness(c, 1.5f);
+Color highContrast = Color.Contrast(c, 2f);
+Color grayscale   = Color.Desaturate(c, 1f);    // amount=1 → full grayscale
+Color partial     = Color.Desaturate(c, 0.5f);  // 50% desaturated
+
+// Gamma correction
+Color gammaSpace  = Color.LinearToGamma(c);     // linear → sRGB
+Color linearSpace = Color.GammaToLinear(c);     // sRGB → linear
+```
+
+### Color Space Conversion
+
+```csharp
+// RGB ↔ HSV
+Float4 hsv = Color.RGBToHSV(c);   // (hue°, saturation, value, alpha)
+Color  rgb = Color.HSVToRGB(new Color(hsv.X, hsv.Y, hsv.Z, hsv.W));
+
+// RGB ↔ HSL
+Float4 hsl = Color.RGBToHSL(c);
+Color  backRgb = Color.HSLToRGB(new Color(hsl.X, hsl.Y, hsl.Z, hsl.W));
+```
+
+### Conversions
+
+| From → To | Cast type | Notes |
+|---|---|---|
+| `Color` → `Float4` | implicit | `(R, G, B, A)` |
+| `Float4` → `Color` | implicit | |
+| `Color` → `Color32` | implicit | Multiplies by 255, clamps to `[0, 255]` |
+| `Color32` → `Color` | implicit | Divides by 255 |
+| `Color` → `System.Numerics.Vector4` | implicit | |
+| `Color` → `System.Drawing.Color` | implicit | |
+
+---
+
+## Color32
+
+`Color32` is a compact `[StructLayout(LayoutKind.Sequential)]` struct with four `byte` fields, occupying 4 bytes — the natural format for GPU texture uploads and pixel buffers.
+
+### Fields
+
+| Field | Type   | Range      | Description     |
+|-------|--------|------------|-----------------|
+| `R`   | `byte` | `[0, 255]` | Red channel     |
+| `G`   | `byte` | `[0, 255]` | Green channel   |
+| `B`   | `byte` | `[0, 255]` | Blue channel    |
+| `A`   | `byte` | `[0, 255]` | Alpha channel   |
+
+### Constructors
+
+```csharp
+// From individual bytes
+var red32  = new Color32(255, 0, 0, 255);
+var trans  = new Color32(0, 0, 0, 0);
+
+// From a packed uint (R at bits 0–7, G at 8–15, B at 16–23, A at 24–31)
+var packed = new Color32(0xFF0000FFu); // red, fully opaque
+```
+
+### Factory Methods
+
+```csharp
+// ARGB-style factory (mirrors System.Drawing.Color.FromArgb)
+Color fromArgb = Color32.FromArgb(alpha: 200, red: 255, green: 128, blue: 0);
+Color withBase = Color32.FromArgb(alpha: 128, baseColor: Color.Red);
+Color noAlpha  = Color32.FromArgb(red: 0, green: 200, blue: 100); // alpha = 255
+```
+
+### Packed Uint
+
+```csharp
+Color32 c32 = new Color32(255, 128, 0, 255);
+uint    u   = ((Color)c32).GetUInt(); // packed RGBA via Color32 conversion
+```
+
+---
+
+## Colors (Named Color Constants)
+
+The W3C-standard named colors are defined as static properties directly on the `Color` struct. The `Colors` static class in `Prowl.Vector` serves as the namespace anchor for this standard, while the actual constants are accessible via `Color.*`:
+
+```csharp
+// Common named colors on Color
+Color transparent = Color.Transparent;   // (0, 0, 0, 0)
+Color white       = Color.White;         // (1, 1, 1, 1)
+Color black       = Color.Black;         // (0, 0, 0, 1)
+Color red         = Color.Red;           // (1, 0, 0, 1)
+Color green       = Color.Green;         // (0, ~0.502, 0, 1)
+Color blue        = Color.Blue;          // (0, 0, 1, 1)
+Color yellow      = Color.Yellow;        // (1, 1, 0, 1)
+Color cyan        = Color.Cyan;          // (0, 1, 1, 1)
+Color magenta     = Color.Magenta;       // (1, 0, 1, 1)
+
+// A selection of others
+Color coral       = Color.Coral;
+Color cornflowerBlue = Color.CornflowerBlue;
+Color crimson     = Color.Crimson;
+Color gold        = Color.Gold;
+Color hotPink     = Color.HotPink;
+Color limeGreen   = Color.LimeGreen;
+Color orange      = Color.Orange;
+Color purple      = Color.Purple;
+Color salmon      = Color.Salmon;
+Color skyBlue     = Color.SkyBlue;
+Color teal        = Color.Teal;
+Color violet      = Color.Violet;
+```
+
+Over 140 W3C named colors are available in total.
+
+---
+
+## Rect
+
+`Rect` represents an axis-aligned rectangle in 2D float space. It stores two `Float2` corners: `Min` (bottom-left) and `Max` (top-right). The constructor always normalizes the corners so `Min ≤ Max` in both axes.
+
+### Construction
+
+```csharp
+// From Min and Max corners
+var r1 = new Rect(new Float2(0f, 0f), new Float2(100f, 50f));
+
+// From individual float components
+var r2 = new Rect(minX: 0f, minY: 0f, maxX: 100f, maxY: 50f);
+
+// From a center point and size
+var r3 = Rect.FromCenterAndSize(
+    center: new Float2(50f, 25f),
+    size:   new Float2(100f, 50f)
+);
+```
+
+### Computed Properties
+
+```csharp
+Rect r = new Rect(0f, 0f, 100f, 50f);
+
+Float2 center  = r.Center;   // (50, 25)
+Float2 size    = r.Size;     // (100, 50)
+Float2 extents = r.Extents;  // (50, 25) — half-size
+float  area    = r.Area;     // 5000
+```
+
+### Spatial Queries
+
+```csharp
+Rect r = new Rect(0f, 0f, 100f, 50f);
+
+// Point containment
+bool inside = r.Contains(new Float2(50f, 25f));  // true
+bool edge   = r.Contains(new Float2(100f, 50f)); // true (boundary included)
+bool outside = r.Contains(new Float2(200f, 0f)); // false
+
+// Rectangle containment
+Rect inner = new Rect(10f, 10f, 90f, 40f);
+bool fullyInside = r.Contains(inner); // true
+
+// Intersection test
+Rect other      = new Rect(50f, 0f, 150f, 50f);
+bool intersects = r.Intersects(other); // true
+
+// Closest point on the rectangle to an external point
+Float2 closest = r.ClosestPointTo(new Float2(120f, 25f)); // (100, 25)
+
+// Distance from a point to the rectangle boundary (0 if inside)
+float dist   = r.GetDistanceToPoint(new Float2(120f, 25f)); // 20
+float distSq = r.GetSqrDistanceToPoint(new Float2(120f, 25f)); // 400
+```
+
+### Growing the Rectangle
+
+```csharp
+Rect r = new Rect(0f, 0f, 100f, 50f);
+
+// Mutating — expand in place to include a point or another Rect
+r.Encapsulate(new Float2(150f, 75f));  // r is now (0,0,150,75)
+r.Encapsulate(new Rect(-10f, -10f, 0f, 0f)); // expands to include negative region
+
+// Expand by a uniform border
+r.Expand(5f);               // all four sides pushed out by 5
+r.Expand(new Float2(10f, 2f)); // push X sides by 10, Y sides by 2
+
+// Non-mutating variants return a new Rect
+Rect grown  = r.Encapsulating(new Float2(200f, 100f));
+Rect bigger = r.Expanded(10f);
+```
+
+### Validity
+
+```csharp
+bool valid = r.IsValid();  // true when Min ≤ Max in both axes
+bool empty = r.IsEmpty();  // true when area ≈ 0
+```
+
+---
+
+## IntRect
+
+`IntRect` is the integer counterpart of `Rect`. It stores `Int2 Min` and `Int2 Max` and exposes the same API but with `int` coordinates, making it natural for tile maps, pixel regions, and screen-space UI layouts.
+
+### Construction
+
+```csharp
+var ir1 = new IntRect(new Int2(0, 0), new Int2(800, 600));
+var ir2 = new IntRect(minX: 0, minY: 0, maxX: 800, maxY: 600);
+var ir3 = IntRect.FromCenterAndSize(new Int2(400, 300), new Int2(800, 600));
+```
+
+### API Highlights
+
+```csharp
+IntRect r = new IntRect(0, 0, 800, 600);
+
+Int2 center  = r.Center;   // (400, 300)
+Int2 size    = r.Size;     // (800, 600)
+Int2 extents = r.Extents;  // (400, 300)
+int  area    = r.Area;     // 480000
+
+bool inside     = r.Contains(new Int2(400, 300));          // true
+bool intersects = r.Intersects(new IntRect(400, 0, 1200, 600)); // true
+
+Int2 closest = r.ClosestPointTo(new Int2(900, 300));       // (800, 300)
+
+// Expand (integer amounts)
+r.Expand(10);                  // mutating — all sides by 10
+r.Expand(new Int2(5, 2));      // mutating — X sides by 5, Y sides by 2
+
+IntRect grown = r.Expanded(10);                   // non-mutating
+IntRect encap = r.Encapsulating(new Int2(900, 700)); // non-mutating
+```
+
+<Tip>
+`IntRect` uses ±1 tolerances in `Contains` and `Intersects` (e.g., `point.X >= Min.X - 1`) to account for the discrete nature of integer boundaries. `Rect` uses `±float.Epsilon` for the same reason.
+</Tip>
+
+---
+
+## Using Color and Rect Together
+
+A common UI or rendering pattern is to define a viewport or panel as a `Rect` and then tint or fade it with a `Color`:
+
+```csharp
+// Define a screen-space panel area
+var panel = new Rect(10f, 10f, 310f, 210f);
+
+// Base tint — semi-transparent dark overlay
+Color panelColor  = new Color(0f, 0f, 0f, 0.75f);
+
+// Highlight if the cursor is inside
+Float2 cursor = new Float2(mouseX, mouseY);
+if (panel.Contains(cursor))
+{
+    // Brighten the overlay when hovered
+    panelColor = Color.Brightness(panelColor, 1.5f);
+}
+
+// Fade in over 0.3 s
+float fadeT      = Maths.Saturate(elapsedTime / 0.3f);
+Color fadedColor = Color.Lerp(Color.Transparent, panelColor, fadeT);
+
+// Use fadedColor and panel.Min / panel.Size when issuing draw calls
+Float2 origin = panel.Min;
+Float2 size   = panel.Size;
+```

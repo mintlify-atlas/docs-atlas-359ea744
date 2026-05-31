@@ -1,0 +1,239 @@
+---
+title: "Maths Static Class — Constants and Scalar Functions"
+sidebarTitle: "Maths"
+description: "Complete API reference for the Maths static class — all constants (PI, E, Sqrt2), scalar functions (Lerp, Clamp, Remap, Floor), and angle utilities."
+---
+
+## Declaration
+
+```csharp
+public static partial class Maths
+```
+
+`Maths` is a static, partial class that centralizes all mathematical constants and scalar/vector utility functions used throughout Prowl.Vector. Every method has overloads for `float`, `double`, and the vector types `Float2/3/4` and `Double2/3/4` (and integer vectors where applicable). All methods are marked `[MethodImpl(AggressiveInlining)]`.
+
+---
+
+## Constants
+
+### Basic Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `PI` | `3.14159265f` | Mathematical constant π. |
+| `E` | `2.71828182f` | Euler's number. |
+| `TwoPI` / `Tau` | `6.28318530f` | 2π — full circle in radians. |
+| `PI_2` | `1.57079632f` | π / 2. |
+| `PI_3` | `1.04719755f` | π / 3. |
+| `PI_4` | `0.78539816f` | π / 4. |
+| `PI_6` | `0.52359877f` | π / 6. |
+| `PI_8` | `0.39269908f` | π / 8. |
+| `Three_PI_2` | `4.71238898f` | 3π / 2. |
+| `One_PI` | `0.31830988f` | 1 / π. |
+| `Two_PI` | `0.63661977f` | 2 / π. |
+| `Four_PI` | `1.27323954f` | 4 / π. |
+
+### Square Roots
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Sqrt2` | `1.41421356f` | √2. |
+| `Sqrt3` | `1.73205080f` | √3. |
+| `Sqrt5` | `2.23606797f` | √5. |
+| `Sqrt_PI` | `1.77245385f` | √π. |
+| `Sqrt_E` | `1.64872127f` | √e. |
+| `One_Sqrt2` | `0.70710678f` | 1 / √2. |
+| `One_Sqrt_PI` | `0.56418949f` | 1 / √π. |
+| `Sqrt_TwoPI` | `2.50662827f` | √(2π). |
+| `One_Sqrt_TwoPI` | `0.39894228f` | 1 / √(2π) — Gaussian normalization factor. |
+| `Sqrt_Two_PI` | `0.79788456f` | √(2/π). |
+
+### Logarithms
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Ln2` | `0.69314718f` | ln(2). |
+| `Ln3` | `1.09861228f` | ln(3). |
+| `Ln10` | `2.30258509f` | ln(10). |
+| `Log2_E` | `1.44269504f` | log₂(e). |
+| `Log10_E` | `0.43429448f` | log₁₀(e). |
+| `Log10_2` | `0.30102999f` | log₁₀(2). |
+
+### Degree / Radian Conversion
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Deg2Rad` | `0.01745329f` | Multiply by this to convert degrees → radians. |
+| `Rad2Deg` | `57.2957795f` | Multiply by this to convert radians → degrees. |
+
+### Trigonometric Values
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `Sin_PI_4` | `0.70710678f` | sin(π/4) = cos(π/4) = 1/√2. |
+| `Sin_PI_3` | `0.86602540f` | sin(π/3) = √3/2. |
+| `Sin_PI_6` | `0.5f` | sin(π/6). |
+| `Tan_PI_4` | `1.0f` | tan(π/4). |
+| `Tan_PI_3` | `1.73205080f` | tan(π/3) = √3. |
+| `Tan_PI_6` | `0.57735026f` | tan(π/6) = 1/√3. |
+
+### Special / Physics Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `GoldenRatio` | `1.61803398f` | Golden ratio φ. |
+| `SilverRatio` | `2.41421356f` | Silver ratio 1 + √2. |
+| `EulerGamma` | `0.57721566f` | Euler–Mascheroni constant γ. |
+| `Catalan` | `0.91596559f` | Catalan's constant. |
+| `E_Neg_Half` | `0.60653065f` | e^(−0.5). |
+| `SpeedOfLight` | `299792458f` | Speed of light in vacuum (m/s). |
+| `StandardGravity` | `9.80665f` | Standard gravitational acceleration (m/s²). |
+| `StandardTemperature` | `273.15f` | Standard temperature in Kelvin. |
+| `AbsoluteZero` | `-273.15f` | Absolute zero in °C. |
+
+### Common Fractions
+
+| Constant | Value |
+|----------|-------|
+| `Half` | `0.5` |
+| `Third` | `1/3` |
+| `TwoThirds` | `2/3` |
+| `Quarter` | `0.25` |
+| `ThreeQuarters` | `0.75` |
+| `Sixth` | `1/6` |
+| `FiveSixths` | `5/6` |
+
+### Precision
+
+| Constant | Description |
+|----------|-------------|
+| `Epsilon` | `float.Epsilon` — smallest positive float. |
+| `MinValue` | `float.MinValue`. |
+| `MaxValue` | `float.MaxValue`. |
+| `PositiveInfinity` | `float.PositiveInfinity`. |
+| `NegativeInfinity` | `float.NegativeInfinity`. |
+| `NaN` | `float.NaN`. |
+
+---
+
+## Methods
+
+All functions are overloaded for scalar types (`float`, `double`, `int`) and vector types (`Float2`, `Float3`, `Float4`, `Double2`, `Double3`, `Double4`, `Int2`, `Int3`, `Int4`) unless noted otherwise. Vector overloads operate **component-wise**.
+
+---
+
+### Basic Math
+
+| Signature | Description |
+|-----------|-------------|
+| `Abs(float x) : float` | Absolute value. |
+| `Acos(float x) : float` | Arc cosine in radians, domain `[−1, 1]`. |
+| `Asin(float x) : float` | Arc sine in radians, domain `[−1, 1]`. |
+| `Atan(float x) : float` | Arc tangent in radians. |
+| `Atan2(float x, float y) : float` | Four-quadrant arc tangent of `x/y`. |
+| `Cos(float x) : float` | Cosine in radians. |
+| `Sin(float x) : float` | Sine in radians. |
+| `Tan(float x) : float` | Tangent in radians. |
+| `Exp(float x) : float` | e^x. |
+| `Exp2(float x) : float` | 2^x. |
+| `Log(float x) : float` | Natural logarithm. |
+| `Pow(float x, float y) : float` | x raised to the power y. |
+| `Sqrt(float x) : float` | Square root. |
+| `Rsqrt(float x) : float` | Reciprocal square root (1/√x). |
+| `Sign(float x) : float` | Returns −1, 0, or 1. |
+| `FMod(float x, float y) : float` | Floating-point remainder (x % y). |
+| `Frac(float x) : float` | Fractional part: `x − floor(x)`. |
+| `ModF(float x, out float integerPart) : float` | Splits x into integer and fractional parts. |
+| `Step(float edge, float x) : float` | Returns 0 if `x < edge`, else 1. |
+| `Smoothstep(float e0, float e1, float x) : float` | Smooth Hermite interpolation between 0 and 1. |
+
+---
+
+### Clamping & Rounding
+
+| Signature | Description |
+|-----------|-------------|
+| `Clamp(float x, float min, float max) : float` | Clamps x to [min, max]. Overloaded for all numeric and vector types. |
+| `Saturate(float x) : float` | Clamps to [0, 1]. |
+| `Min(float x, float y) : float` | Minimum of two values. |
+| `Max(float x, float y) : float` | Maximum of two values. |
+| `Floor(float x) : float` | Largest integer ≤ x. |
+| `Ceiling(float x) : float` | Smallest integer ≥ x. |
+| `Round(float x) : float` | Nearest integer (banker's rounding). |
+| `FloorToInt(float x) : int` | Floor and cast to int. |
+| `CeilToInt(float x) : int` | Ceiling and cast to int. |
+| `RoundToInt(float x) : int` | Round and cast to int. |
+| `Repeat(float t, float length) : float` | Wraps t to [0, length]. |
+| `PingPong(float t, float length) : float` | Bounces t back and forth in [0, length]. |
+
+---
+
+### Interpolation
+
+| Signature | Description |
+|-----------|-------------|
+| `Lerp(float a, float b, float t) : float` | Linearly interpolates, t clamped to [0, 1]. |
+| `LerpUnclamped(float a, float b, float t) : float` | Lerp without clamping t. |
+| `LerpAngle(float a, float b, float t) : float` | Lerp taking the shortest arc (in radians). |
+| `InverseLerp(float a, float b, float value) : float` | Returns the t such that Lerp(a, b, t) = value. Returns 0 when a == b. |
+| `SmoothLerp(float a, float b, float t) : float` | Lerp with a cubic Hermite ease-in/ease-out. |
+| `Smoothstep(float e0, float e1, float x) : float` | Classic GLSL-style smoothstep. |
+
+---
+
+### Remapping & Angle Utilities
+
+| Signature | Description |
+|-----------|-------------|
+| `Remap(float v, float iMin, float iMax, float oMin, float oMax) : float` | Maps v from [iMin, iMax] to [oMin, oMax]. |
+| `DeltaAngle(float current, float target) : float` | Shortest signed angle difference in radians. |
+| `ToDegrees(float radians) : float` | Converts radians to degrees. |
+| `ToRadians(float degrees) : float` | Converts degrees to radians. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+
+// --- Constants ---
+float circumference = 2f * Maths.PI * radius;
+float halfDiag = Maths.Sqrt2 * sideLength / 2f;
+
+// --- Clamping / Saturate ---
+float health = Maths.Clamp(rawValue, 0f, 100f);
+float normalized = Maths.Saturate(health / 100f);
+
+// --- Lerp & Smoothstep ---
+float t = (float)frame / totalFrames;
+float smoothT = Maths.Smoothstep(0f, 1f, t);
+Float3 position = Maths.Lerp(start, end, smoothT);
+
+// --- Remap ---
+// Convert a noise value from [-1, 1] to [0, 1]
+float remapped = Maths.Remap(noiseValue, -1f, 1f, 0f, 1f);
+
+// --- Angle utilities ---
+float delta = Maths.DeltaAngle(currentAngle, targetAngle); // in radians
+float deg = Maths.ToDegrees(Maths.PI / 6f); // 30
+
+// --- Vector component-wise ---
+Float3 clamped = Maths.Clamp(velocity, -maxSpeed, maxSpeed);
+Float3 floored = Maths.Floor(worldPos); // snap to grid
+Float3 frac    = Maths.Frac(worldPos);  // fractional cell offset
+
+// --- Repeat / PingPong ---
+float wrapped = Maths.Repeat(time, 10f);        // loops in [0, 10]
+float bounced = Maths.PingPong(time, 5f);       // bounces in [0, 5]
+```
+
+---
+
+## Notes
+
+- All scalar overloads delegate to `MathF` (single-precision) or `Math` (double-precision) from the BCL, so performance matches the platform's native math library.
+- Vector overloads expand to per-component scalar calls — there is no SIMD acceleration at this level.
+- `Lerp` clamps `t` to [0, 1] via `Saturate`. Use `LerpUnclamped` for extrapolation outside the range.
+- `Remap` does **not** clamp the input; wrap with `Clamp` first if you need bounded output.
+- `DeltaAngle` works in **radians**. Multiply inputs/outputs by `Deg2Rad`/`Rad2Deg` if working in degrees.

@@ -1,0 +1,258 @@
+---
+title: "RNG: High-Quality Pseudo-Random Number Generation"
+sidebarTitle: "RNG"
+description: "The RNG class uses the xoshiro256** algorithm for fast, high-quality random numbers — with geometry helpers, Gaussian distribution, and a shared static instance."
+---
+
+`RNG` (in `Prowl.Vector`) implements the **xoshiro256\*\*** algorithm, providing uniform, Gaussian, and geometry-specific random number generation. It supports both a convenient `RNG.Shared` static instance and seeded instances for fully reproducible results. All range methods are **inclusive of both bounds**.
+
+---
+
+## Construction
+
+```csharp
+// Time-seeded (non-reproducible) — different every run
+var rng = new RNG();
+
+// Seeded with a ulong — fully reproducible
+var seeded = new RNG(42UL);
+
+// Seeded with an int — convenience overload, cast to ulong internally
+var seededInt = new RNG(12345);
+```
+
+| Constructor | Seed type | Description |
+|---|---|---|
+| `new RNG()` | Time-based | Uses `Environment.TickCount ^ DateTime.UtcNow.Ticks`. |
+| `new RNG(ulong seed)` | `ulong` | Deterministic. State is bootstrapped via SplitMix64. |
+| `new RNG(int seed)` | `int` | Convenience wrapper — casts `seed` to `ulong`. |
+
+### `RNG.Shared`
+
+```csharp
+// Global, lazily-initialized, time-seeded instance
+float value = RNG.Shared.NextFloat();
+```
+
+`RNG.Shared` is a `static readonly` property. It is convenient for fire-and-forget calls where reproducibility is not required, but **is not thread-safe** — create per-thread instances for concurrent workloads.
+
+---
+
+## Seed Management
+
+```csharp
+var rng = new RNG();
+rng.SetSeed(99999UL); // re-initialise the generator with a new seed
+```
+
+`SetSeed(ulong seed)` reinitialises all four 64-bit state words using the SplitMix64 algorithm, guaranteeing that two `RNG` instances with the same seed produce identical sequences.
+
+---
+
+## Basic Value Generation
+
+| Method | Return | Range | Description |
+|---|---|---|---|
+| `NextFloat()` | `float` | `[0, 1]` | Uses the upper 24 bits for single-precision quality. |
+| `NextDouble()` | `double` | `[0, 1]` | Uses the upper 53 bits for full double-precision quality. |
+| `NextInt()` | `int` | `[0, int.MaxValue]` | Non-negative random integer. |
+| `NextUInt()` | `uint` | `[0, uint.MaxValue]` | Full 32-bit unsigned integer. |
+| `NextLong()` | `long` | `[0, long.MaxValue]` | Non-negative 64-bit integer. |
+| `NextBool()` | `bool` | `true` / `false` | Samples the least-significant bit of the raw output. |
+
+---
+
+## Range Methods
+
+All `Range` overloads are **inclusive on both ends**.
+
+```csharp
+int    n = rng.Range(0, 10);         // one of {0, 1, 2, …, 10}
+float  f = rng.Range(0f, 1f);        // [0.0, 1.0]
+double d = rng.Range(-1.0, 1.0);     // [-1.0, 1.0]
+uint   u = rng.Range(5u, 20u);       // [5, 20]
+long   l = rng.Range(0L, 100L);      // [0, 100]
+```
+
+Vector overloads generate per-component random values in the given range:
+
+```csharp
+Float2 v2 = rng.Range(new Float2(0f, 0f), new Float2(10f, 5f));
+Float3 v3 = rng.Range(new Float3(-1f), new Float3(1f));
+Float4 v4 = rng.Range(Float4.Zero, Float4.One);
+
+// Double variants also available:
+Double3 dv = rng.Range(new Double3(-1.0), new Double3(1.0));
+```
+
+---
+
+## Vector Helpers
+
+Generate random vectors with all components in `[0, 1]`:
+
+```csharp
+Float2  f2 = rng.NextFloat2();
+Float3  f3 = rng.NextFloat3();
+Float4  f4 = rng.NextFloat4();
+Double2 d2 = rng.NextDouble2();
+Double3 d3 = rng.NextDouble3();
+Double4 d4 = rng.NextDouble4();
+```
+
+---
+
+## Geometric Helpers
+
+| Method | Return | Description |
+|---|---|---|
+| `OnUnitCircle()` | `Float2` | Uniformly distributed point **on** the unit circle (normalized 2D direction). |
+| `InsideUnitCircle()` | `Float2` | Uniformly distributed point **inside** the unit disk. Uses `sqrt` of radius for area uniformity. |
+| `OnUnitSphere()` | `Float3` | Uniformly distributed point **on** the unit sphere surface. Uses the spherical coordinate method. |
+| `InsideUnitSphere()` | `Float3` | Uniformly distributed point **inside** the unit sphere. Uses cube-root of radius for volume uniformity. |
+| `Direction2D()` | `Float2` | Alias for `OnUnitCircle()`. |
+| `Direction3D()` | `Float3` | Alias for `OnUnitSphere()`. |
+| `NextAngle()` | `float` | Random angle in radians, range `[0, 2π]`. |
+| `NextAngleDegrees()` | `float` | Random angle in degrees, range `[0, 360]`. |
+| `AngleRange(float min, float max)` | `float` | Random angle in `[minRadians, maxRadians]`. |
+
+```csharp
+Float2 dir2D = rng.OnUnitCircle();      // random 2D direction
+Float3 dir3D = rng.OnUnitSphere();      // random 3D direction
+Float3 pos   = rng.InsideUnitSphere();  // random point inside a unit sphere
+```
+
+---
+
+## Color Generation
+
+| Method | Return | Description |
+|---|---|---|
+| `NextColor()` | `Float4` | Random RGBA color with RGB in `[0, 1]` and alpha fixed at `1`. |
+| `NextColor(float alpha)` | `Float4` | Random RGB with a specified alpha. |
+| `NextColorWithAlpha()` | `Float4` | Random RGBA with all four components randomised. |
+| `NextColorHSV(Float2 hueRange, Float2 saturationRange, Float2 valueRange)` | `Float4` | Random color sampled from constrained HSV ranges, converted to RGBA. |
+
+```csharp
+Float4 randomColor    = rng.NextColor();               // fully opaque random
+Float4 semiTransp     = rng.NextColor(0.5f);           // 50% alpha
+Float4 coolBlueish    = rng.NextColorHSV(
+    new Float2(0.55f, 0.70f),  // hue:   blue-cyan
+    new Float2(0.6f, 1.0f),    // sat:   vivid
+    new Float2(0.5f, 1.0f)     // value: bright
+);
+```
+
+---
+
+## Gaussian Distribution
+
+```csharp
+public float NextGaussian(float mean = 0.0f, float standardDeviation = 1.0f)
+```
+
+Uses the **Box-Muller transform**, which converts two uniform samples into two independent standard-normal values. The second value is cached internally so that consecutive calls reuse it, halving the average cost per sample.
+
+```csharp
+// Weapon spread: mostly accurate shots, occasional outlier
+float spreadAngle = rng.NextGaussian(mean: 0f, standardDeviation: 0.03f);
+
+// AI reaction time: average 250 ms, std dev 40 ms
+float reactionMs = rng.NextGaussian(mean: 250f, standardDeviation: 40f);
+```
+
+There is also an exponential distribution helper:
+
+```csharp
+public float NextExponential(float lambda = 1.0f)
+```
+
+Returns a value from an exponential distribution with rate parameter `lambda` (mean = `1/lambda`). Useful for modelling time-between-events in Poisson processes.
+
+---
+
+## Probability Helpers
+
+| Method | Description |
+|---|---|
+| `Chance(float probability)` | Returns `true` with the given probability in `[0, 1]`. |
+| `Chance(double probability)` | `double` overload. |
+| `WeightedChoice(float[] weights)` | Returns the **index** of a randomly selected element, weighted by the values in `weights`. Throws if all weights are zero. |
+
+```csharp
+if (rng.Chance(0.05f))
+    SpawnRareLoot(); // 5% chance
+
+int lootTier = rng.WeightedChoice(new float[] { 60f, 25f, 10f, 4f, 1f });
+// 60% common, 25% uncommon, 10% rare, 4% epic, 1% legendary
+```
+
+---
+
+## Collections — Shuffle and Choose
+
+```csharp
+// Pick a random element from an array
+T item = rng.Choice(array);
+
+// Shuffle an array in-place (Fisher-Yates)
+rng.Shuffle(array);
+
+// Return a shuffled copy, leaving the original intact
+T[] shuffledCopy = rng.Shuffled(array);
+```
+
+`Shuffle<T>` implements the unbiased Fisher-Yates algorithm with O(n) complexity. `Shuffled<T>` performs a full copy first, then shuffles the copy.
+
+---
+
+## Utility
+
+```csharp
+// Fill a byte array with random data
+byte[] buffer = new byte[32];
+rng.NextBytes(buffer);
+
+// Random alphanumeric string (default charset: A-Z a-z 0-9)
+string token = rng.NextString(16);
+
+// Custom charset
+string hex = rng.NextString(8, "0123456789ABCDEF");
+```
+
+---
+
+## Code Example — Reproducible Procedural Generation
+
+```csharp
+using Prowl.Vector;
+
+// Seeded RNG for a deterministic dungeon layout.
+// Every run with seed 42 produces the same dungeon.
+var rng = new RNG(42UL);
+
+const int RoomCount = 10;
+var rooms = new Float3[RoomCount];
+
+for (int i = 0; i < RoomCount; i++)
+{
+    // Room centres spread across a 100×100×10 volume
+    rooms[i] = rng.Range(new Float3(0f, 0f, 0f), new Float3(100f, 100f, 10f));
+}
+
+// Shuffle the room connection order reproducibly
+int[] order = new int[RoomCount];
+for (int i = 0; i < RoomCount; i++) order[i] = i;
+rng.Shuffle(order);
+
+// Random enemy count per room, Gaussian-distributed around 3
+for (int i = 0; i < RoomCount; i++)
+{
+    int enemies = Maths.Max(0, Maths.RoundToInt(rng.NextGaussian(mean: 3f, standardDeviation: 1.5f)));
+    Console.WriteLine($"Room {order[i]}: {enemies} enemies at {rooms[i]}");
+}
+```
+
+<Tip>
+  Use `RNG.Shared` for one-off calls where reproducibility does not matter. Use `new RNG(seed)` — storing and reusing the same `ulong` seed — whenever you need deterministic output that survives a restart, a level reload, or a network sync.
+</Tip>

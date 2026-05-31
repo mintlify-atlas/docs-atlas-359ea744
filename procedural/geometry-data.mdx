@@ -1,0 +1,271 @@
+---
+title: "GeometryData: Non-Manifold Mesh Representation"
+sidebarTitle: "GeometryData"
+description: "GeometryData is a BMesh-inspired non-manifold boundary representation supporting vertices, edges, loops, faces, and arbitrary per-element attributes."
+---
+
+`GeometryData` (in `Prowl.Vector.Geometry`) is a flexible mesh representation inspired by Blender's BMesh. It stores four topological element types — vertices, edges, loops (face corners), and faces — with arbitrary custom attributes attachable to any of them. This design makes procedural mesh construction, editing, and export straightforward while remaining efficient enough for real-time tooling.
+
+## Topology Structure
+
+`GeometryData` uses a **boundary representation** (BRep). Four classes form its topology:
+
+| Class    | Role                                            | Key fields                                                  |
+|----------|-------------------------------------------------|-------------------------------------------------------------|
+| `Vertex` | A point in 3D space                             | `Id`, `Float3 Point`, `Edge`, `Attributes`                  |
+| `Edge`   | A directed link between two vertices            | `Id`, `Vert1`, `Vert2`, `Next1/2`, `Prev1/2`, `Loop`       |
+| `Loop`   | A face corner — one vertex/edge pair per face   | `Vert`, `Edge`, `Face`, `Next`, `Prev`, `RadialNext/Prev`   |
+| `Face`   | An N-gon polygon                                | `Id`, `VertCount`, `Loop`, `Attributes`                     |
+
+All four collections are exposed as lists on the mesh:
+
+```csharp
+GeometryData mesh = new GeometryData();
+List<GeometryData.Vertex> vertices = mesh.Vertices;
+List<GeometryData.Edge>   edges    = mesh.Edges;
+List<GeometryData.Loop>   loops    = mesh.Loops;
+List<GeometryData.Face>   faces    = mesh.Faces;
+```
+
+---
+
+## Vertex
+
+A `Vertex` stores a `Float3 Point` (its world-space position) and a reference to one of its connected edges. From that anchor edge you can reach all others.
+
+```csharp
+public class Vertex
+{
+    public int Id;
+    public Float3 Point;
+    public Dictionary<string, AttributeValue> Attributes;
+    public Edge? Edge;  // One of the connected edges; traverse via edge.Next(vertex)
+}
+```
+
+**Navigation methods:**
+
+| Method                  | Returns                                          |
+|-------------------------|--------------------------------------------------|
+| `NeighborEdges()`       | `List<Edge>` — all edges connected to this vertex |
+| `NeighborFaces()`       | `List<Face>` — all faces that use this vertex     |
+
+`NeighborEdges()` walks the circular linked list rooted at `Vertex.Edge`, following `edge.Next(vertex)` until it loops back.
+
+---
+
+## Edge
+
+An `Edge` links `Vert1` to `Vert2`. Each vertex maintains its own doubly-linked ring of edges (`Next1/Prev1` for `Vert1`, `Next2/Prev2` for `Vert2`), so traversal is O(degree) with no heap allocation.
+
+```csharp
+public class Edge
+{
+    public int Id;
+    public Vertex Vert1, Vert2;
+    public Edge? Next1, Prev1;   // Around Vert1
+    public Edge? Next2, Prev2;   // Around Vert2
+    public Loop? Loop;           // First loop (face corner) using this edge
+    public Dictionary<string, AttributeValue> Attributes;
+}
+```
+
+**Useful methods:**
+
+| Method                    | Description                                                     |
+|---------------------------|-----------------------------------------------------------------|
+| `ContainsVertex(v)`       | Returns `true` if `v` is `Vert1` or `Vert2`                    |
+| `OtherVertex(v)`          | Returns the opposite vertex                                     |
+| `Next(v)`                 | Returns the next edge in the ring around vertex `v`             |
+| `Prev(v)`                 | Returns the previous edge in the ring around vertex `v`         |
+| `NeighborFaces()`         | Returns all faces that contain this edge (via the radial loop)  |
+| `Center()`                | Midpoint of the two endpoint positions                          |
+
+---
+
+## Loop
+
+A `Loop` is a **face corner**: it ties one vertex, one edge, and one face together. Each face has exactly as many loops as it has vertices, linked in a circular list (`Next` / `Prev`). Every edge also maintains a **radial loop** list (`RadialNext` / `RadialPrev`) of all the loops — from different faces — that share that edge.
+
+```csharp
+public class Loop
+{
+    public Vertex Vert;
+    public Edge   Edge;
+    public Face   Face;
+    public Loop? Next, Prev;             // Around face
+    public Loop? RadialNext, RadialPrev; // Around edge (across faces)
+    public Dictionary<string, AttributeValue> Attributes;
+}
+```
+
+Loops are the natural home for **per-corner** data such as UV coordinates, since the same vertex may have different UVs in different faces.
+
+---
+
+## Face
+
+A `Face` is an N-gon. It stores its vertex count (`VertCount`) and a pointer to one of its loops (`Loop`), from which you traverse the complete face ring.
+
+```csharp
+public class Face
+{
+    public int Id;
+    public int VertCount;
+    public Loop? Loop;  // Navigate with loop.Next
+    public Dictionary<string, AttributeValue> Attributes;
+}
+```
+
+**Useful methods:**
+
+| Method                         | Description                                         |
+|--------------------------------|-----------------------------------------------------|
+| `NeighborVertices()`           | `List<Vertex>` in face winding order                |
+| `NeighborVerticesEnumerable()` | Same, as `IEnumerable` (avoids list allocation)     |
+| `NeighborEdges()`              | `List<Edge>` for the face                           |
+| `GetLoop(Vertex v)`            | Returns the `Loop` for a specific vertex            |
+| `Center()`                     | Average position of all vertices                    |
+| `Normal()`                     | Newell-method polygon normal                        |
+| `GetAABB()`                    | Axis-aligned bounding box of the face               |
+
+---
+
+## Custom Attributes
+
+Every element type supports arbitrary named attributes via `AttributeDefinition` and `AttributeValue`. Attributes are strongly typed (int or float) and sized (number of dimensions).
+
+### Attribute types
+
+| Class                  | Base type | Example use          |
+|------------------------|-----------|----------------------|
+| `FloatAttributeValue`  | `float[]` | UVs, normals, color  |
+| `IntAttributeValue`    | `int[]`   | Material index, flags|
+
+`FloatAttributeValue` additionally exposes `AsVector3()` and `FromVector3(Float3)` helpers.
+
+### Registering attributes
+
+Use `Add*Attribute` on the `GeometryData` object. Existing elements are automatically populated with the default (zero) value, and all future elements added to the mesh will receive it too.
+
+```csharp
+// AttributeBaseType: Float or Int
+// dimensions: number of components (e.g. 2 for UV, 3 for normal)
+AttributeDefinition uvDef = mesh.AddLoopAttribute("uv", GeometryData.AttributeBaseType.Float, 2);
+AttributeDefinition matDef = mesh.AddFaceAttribute("material_index", GeometryData.AttributeBaseType.Int, 1);
+```
+
+**Full set of attribute registration methods:**
+
+| Method                                                     | Scope          |
+|------------------------------------------------------------|----------------|
+| `AddVertexAttribute(name, baseType, dimensions)`           | Per-vertex     |
+| `AddEdgeAttribute(name, baseType, dimensions)`             | Per-edge       |
+| `AddLoopAttribute(name, baseType, dimensions)`             | Per-face-corner|
+| `AddFaceAttribute(name, baseType, dimensions)`             | Per-face       |
+
+Corresponding `Has*Attribute(name)` methods are available to check for prior registration.
+
+### Reading and writing attribute values
+
+```csharp
+// Write UV to a loop
+var uv = loop.Attributes["uv"] as GeometryData.FloatAttributeValue;
+uv.Data[0] = 0.5f;  // U
+uv.Data[1] = 0.25f; // V
+
+// Read a Float3 normal from a vertex
+var normalAttr = vertex.Attributes["normal"] as GeometryData.FloatAttributeValue;
+Float3 normal = normalAttr.AsVector3();
+```
+
+---
+
+## Building Geometry
+
+The three core mutation methods mirror BMesh's own API:
+
+| Method                          | Description                                                      |
+|---------------------------------|------------------------------------------------------------------|
+| `AddVertex(Float3 point)`       | Creates and registers a vertex                                   |
+| `AddVertex(float x, float y, float z)` | Convenience overload                                    |
+| `AddEdge(Vertex v1, Vertex v2)` | Creates edge or returns existing one (idempotent)                |
+| `AddEdge(int v1, int v2)`       | Index-based overload                                             |
+| `AddFace(params Vertex[] verts)` | Creates face (and all needed edges) from an ordered vertex list |
+| `AddFace(params int[] indices)` | Index-based overload                                             |
+
+`AddEdge` is idempotent — calling it twice with the same two vertices returns the existing edge. `AddFace` calls `AddEdge` internally for every pair of adjacent vertices.
+
+### Example: building a quad
+
+```csharp
+using Prowl.Vector;
+using Prowl.Vector.Geometry;
+
+var mesh = new GeometryData();
+
+// Add UV attribute on loops before adding faces (optional but recommended)
+mesh.AddLoopAttribute("uv", GeometryData.AttributeBaseType.Float, 2);
+
+// Four corner vertices of a 1×1 quad in the XZ plane
+var v0 = mesh.AddVertex(new Float3(-0.5f, 0f, -0.5f));
+var v1 = mesh.AddVertex(new Float3( 0.5f, 0f, -0.5f));
+var v2 = mesh.AddVertex(new Float3( 0.5f, 0f,  0.5f));
+var v3 = mesh.AddVertex(new Float3(-0.5f, 0f,  0.5f));
+
+// Single quad face
+var face = mesh.AddFace(v0, v1, v2, v3);
+```
+
+---
+
+## Iterating Elements
+
+All four collections are plain `List<T>` and support standard C# iteration:
+
+```csharp
+// Iterate vertices
+foreach (var vertex in mesh.Vertices)
+    Console.WriteLine(vertex.Point);
+
+// Iterate faces and their corners
+foreach (var face in mesh.Faces)
+{
+    foreach (var vertex in face.NeighborVertices())
+        Console.WriteLine($"  corner: {vertex.Point}");
+}
+
+// Iterate edges
+foreach (var edge in mesh.Edges)
+    Console.WriteLine($"edge midpoint: {edge.Center()}");
+```
+
+### Converting to renderable data
+
+`GeometryData` provides two built-in export structs for GPU upload:
+
+```csharp
+// Fan-triangulated position + index buffer
+GeometryData.TriangleMesh tri = mesh.ToTriangleMesh();
+// tri.Vertices  -- Float3[]
+// tri.Indices   -- uint[]
+
+// Line segment position + index buffer (wireframe)
+GeometryData.LineMesh wire = mesh.ToLineMesh();
+```
+
+---
+
+## Bounding Box
+
+```csharp
+AABB bounds = mesh.GetAABB(); // Tight AABB over all Vertices
+```
+
+Individual faces also expose `face.GetAABB()`.
+
+---
+
+<Note>
+CSG operations (via `GeometryCSG`) require that every face in both input meshes is a triangle (`VertCount == 3`). Call `GeometryOperators.Triangulate(mesh)` before passing a mesh to any CSG method, or use a generator that already produces triangles (e.g., `GeometryGenerator.Icosphere` or `GeometryGenerator.Tetrahedron`).
+</Note>

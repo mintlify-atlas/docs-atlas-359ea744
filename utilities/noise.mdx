@@ -1,0 +1,261 @@
+---
+title: "Procedural Noise: Simplex, Perlin, and Cellular Functions"
+sidebarTitle: "Noise"
+description: "Generate Simplex, Classic Perlin, periodic Perlin, and Cellular (Worley) noise in 2D, 3D, and 4D using the Noise static class."
+---
+
+`Noise` (in `Prowl.Vector`) is a static partial class providing GLSL-ported noise functions for procedural content generation. It covers four distinct noise families — Simplex, Classic Perlin, Periodic Simplex, and Cellular/Worley — spanning 2D, 3D, and 4D inputs, all returning `float` values in approximately `[−1, 1]` unless noted otherwise.
+
+<Note>
+  All noise functions are ported from Stefan Gustavson's GLSL noise shaders and are released under the MIT license. Source: [https://github.com/stegu/webgl-noise](https://github.com/stegu/webgl-noise)
+</Note>
+
+---
+
+## Simplex Noise (`SNoise`)
+
+Simplex noise is a modern replacement for Classic Perlin noise. It uses fewer arithmetic operations, has lower computational complexity in higher dimensions, and produces smooth, isotropic results with no obvious directional artefacts.
+
+**Output range:** approximately `[−1, 1]`.
+
+### Overloads
+
+| Signature | Input | Description |
+|---|---|---|
+| `SNoise(Float2 v)` | 2D | Standard 2D simplex noise. |
+| `SNoise(Float3 v)` | 3D | Standard 3D simplex noise. |
+| `SNoise(Float4 v)` | 4D | Standard 4D simplex noise (higher quality, useful for animated 3D noise via a time `w` component). |
+| `SNoise(Float3 v, out Float3 gradient)` | 3D | 3D simplex noise that also returns the analytical gradient — useful for normal map generation or domain warping without finite differences. |
+
+### Example — 2D heightmap
+
+```csharp
+using Prowl.Vector;
+
+int width = 256, height = 256;
+float[] heightmap = new float[width * height];
+float scale = 0.04f;
+
+for (int y = 0; y < height; y++)
+for (int x = 0; x < width; x++)
+{
+    float raw = Noise.SNoise(new Float2(x * scale, y * scale)); // [-1, 1]
+    heightmap[y * width + x] = raw * 0.5f + 0.5f;              // remap to [0, 1]
+}
+```
+
+### Example — Animated 3D noise using 4D
+
+```csharp
+// Animate a 3D volume by sweeping through a 4th dimension over time.
+float noiseValue = Noise.SNoise(new Float4(pos.X, pos.Y, pos.Z, time * 0.5f));
+```
+
+### Example — Gradient output for normals
+
+```csharp
+float n = Noise.SNoise(new Float3(pos.X, pos.Y, pos.Z), out Float3 grad);
+// grad is the analytical derivative — use it directly as a surface normal
+Float3 normal = Float3.Normalize(new Float3(-grad.X, 1.0f, -grad.Y));
+```
+
+---
+
+## Classic Perlin Noise (`CNoise`)
+
+Classic Perlin noise uses a grid-based gradient scheme with quintic interpolation. It produces smooth, band-limited noise with a characteristic look suited to cloud, marble, and wood textures.
+
+**Output range:** approximately `[−1, 1]`.
+
+### Overloads
+
+| Signature | Input | Description |
+|---|---|---|
+| `CNoise(Float2 P)` | 2D | Classic 2D Perlin noise. |
+| `CNoise(Float3 P)` | 3D | Classic 3D Perlin noise. |
+| `CNoise(Float4 P)` | 4D | Classic 4D Perlin noise. |
+
+### Example
+
+```csharp
+// Classic Perlin noise — cloud density lookup
+float density = Noise.CNoise(new Float3(x * 0.02f, y * 0.02f, z * 0.02f));
+density = density * 0.5f + 0.5f; // [0, 1]
+```
+
+---
+
+## Periodic Perlin Noise (`PNoise`)
+
+Periodic variants of Classic Perlin noise that tile seamlessly. A `rep` parameter specifies the repetition period along each axis. Use this whenever you need a tileable texture or a looping animation.
+
+**Output range:** approximately `[−1, 1]`.
+
+### Overloads
+
+| Signature | Input | Description |
+|---|---|---|
+| `PNoise(Float2 P, Float2 rep)` | 2D | Tileable 2D Perlin noise. `rep` is the period per axis. |
+| `PNoise(Float3 P, Float3 rep)` | 3D | Tileable 3D Perlin noise. |
+| `PNoise(Float4 P, Float4 rep)` | 4D | Tileable 4D Perlin noise. |
+
+### Example — Tiling terrain texture
+
+```csharp
+// Tile every 4 units in both X and Y
+float tileSize = 4f;
+float value = Noise.PNoise(
+    new Float2(worldX, worldY),
+    new Float2(tileSize, tileSize)
+);
+```
+
+---
+
+## Cellular / Worley Noise
+
+Cellular noise (also called Worley noise) works by scattering feature points and measuring the distance from any query point to the nearest two feature points (F1 and F2). It produces characteristic Voronoi-cell patterns useful for stone, skin, scales, and organic surfaces.
+
+All cellular functions return a **`Float2`** whose components are:
+- `.X` — **F1**: distance to the nearest feature point.
+- `.Y` — **F2**: distance to the second-nearest feature point.
+
+### Overloads
+
+| Signature | Return | Description |
+|---|---|---|
+| `Cellular2D(Float2 P)` | `Float2` | Full-quality 2D cellular noise (3×3 search window). |
+| `Cellular3D(Float3 P)` | `Float2` | Full-quality 3D cellular noise. |
+
+### Example
+
+```csharp
+// Stone/cracked-earth look using F2-F1 (border width)
+Float2 cell2D = Noise.Cellular2D(new Float2(x * 0.3f, y * 0.3f));
+float f1 = cell2D.X; // nearest neighbour distance
+float f2 = cell2D.Y; // second nearest
+
+float border = f2 - f1;          // thin lines at cell borders
+float stone  = Maths.Saturate(f1 * 2f); // smooth fill
+
+// 3D version for volumetric patterns
+Float2 cell3D = Noise.Cellular3D(new Float3(x, y, z) * 0.2f);
+float caviness = 1f - cell3D.X;   // invert F1 for blob shapes
+```
+
+---
+
+## Periodic Simplex Noise (`Psrd_*`)
+
+The `Psrd_*` family provides 2D simplex noise on a hexagonal grid with support for both tiling (periodic) and non-tiling variants, rotating gradients, and analytical derivatives. These are higher-quality options than plain `SNoise` when you need tileability or gradient information simultaneously.
+
+### Overloads
+
+| Signature | Tiles | Returns Gradient | Description |
+|---|---|---|---|
+| `Psrd_PSRDNoise(Float2 pos, Float2 per, float rot)` | ✅ | ✅ | Tiling simplex noise with rotating gradients. Returns `Float3(noise, dX, dY)`. |
+| `Psrd_PSDNoise(Float2 pos, Float2 per)` | ✅ | ✅ | Wrapper for `Psrd_PSRDNoise` with `rot = 0`. Returns `Float3(noise, dX, dY)`. |
+| `Psrd_PSRNoise(Float2 pos, Float2 per, float rot)` | ✅ | ❌ | Tiling simplex with rotating gradients, scalar output only. |
+| `Psrd_PSNoise(Float2 pos, Float2 per)` | ✅ | ❌ | Wrapper for `Psrd_PSRNoise` with `rot = 0`. |
+| `Psrd_SRDNoise(Float2 pos, float rot)` | ❌ | ✅ | Non-tiling simplex with rotating gradients. Returns `Float3(noise, dX, dY)`. |
+| `Psrd_SDNoise(Float2 pos)` | ❌ | ✅ | Wrapper for `Psrd_SRDNoise` with `rot = 0`. |
+| `SRNoise(Float2 pos, float rot)` | ❌ | ❌ | Non-tiling simplex with rotating gradients, scalar only. |
+| `Psrd_SNoise(Float2 pos)` | ❌ | ❌ | Wrapper for `SRNoise` with `rot = 0`. |
+
+The `Float3` return from derivative-enabled variants packs `(noiseValue, dNoise/dX, dNoise/dY)`.
+
+### Example — Tiling noise with gradient
+
+```csharp
+// Tiling period of 8×8 world units, no gradient rotation
+Float3 result = Noise.Psrd_PSDNoise(new Float2(worldX, worldY), new Float2(8f, 8f));
+float  value  = result.X;   // noise value in [-1, 1]
+Float2 deriv  = result.YZ;  // analytical (dX, dY) gradient
+```
+
+---
+
+## Usage Patterns
+
+<Accordion title="Octave Noise (Fractal Brownian Motion — FBM)">
+  Summing multiple octaves of noise at increasing frequency and decreasing amplitude creates fractal-like detail — the foundation of terrain, clouds, and fire effects.
+
+  ```csharp
+  float FBM(Float2 pos, int octaves = 6, float lacunarity = 2f, float gain = 0.5f)
+  {
+      float value     = 0f;
+      float amplitude = 0.5f;
+      float frequency = 1f;
+
+      for (int i = 0; i < octaves; i++)
+      {
+          value     += Noise.SNoise(pos * frequency) * amplitude;
+          frequency *= lacunarity;
+          amplitude *= gain;
+      }
+      return value; // roughly [-1, 1]
+  }
+
+  // Usage:
+  float height = FBM(new Float2(x * 0.01f, y * 0.01f)) * 0.5f + 0.5f;
+  ```
+</Accordion>
+
+<Accordion title="Domain Warping">
+  Domain warping distorts the input coordinates of one noise call using the output of another, creating swirling, flowing patterns.
+
+  ```csharp
+  Float2 DomainWarp(Float2 pos, float strength = 1.2f)
+  {
+      float dx = Noise.SNoise(pos + new Float2(0.0f, 5.3f));
+      float dy = Noise.SNoise(pos + new Float2(1.7f, 9.2f));
+
+      Float2 warped = pos + new Float2(dx, dy) * strength;
+      return warped;
+  }
+
+  // Two levels of warping for dramatic effect
+  Float2 q = DomainWarp(new Float2(x, y));
+  Float2 r = DomainWarp(q);
+  float value = Noise.SNoise(r);
+  ```
+</Accordion>
+
+<Accordion title="Tiling Heightmaps">
+  Use `PNoise` or the `Psrd_PSNoise` family whenever a texture must tile seamlessly — for terrain chunks, repeating wall materials, or looping animations.
+
+  ```csharp
+  // PNoise: tileable Classic Perlin heightmap
+  float tileSize = 8f;
+  float height = FBMPeriodic(new Float2(x, y), tileSize);
+
+  float FBMPeriodic(Float2 pos, float period, int octaves = 5)
+  {
+      float value     = 0f;
+      float amplitude = 0.5f;
+      Float2 freq     = new Float2(1f);
+
+      for (int i = 0; i < octaves; i++)
+      {
+          value     += Noise.PNoise(pos * freq, new Float2(period) * freq) * amplitude;
+          freq      *= 2f;
+          amplitude *= 0.5f;
+      }
+      return value;
+  }
+  ```
+</Accordion>
+
+<Accordion title="Cellular Voronoi Patterns">
+  Combine F1 and F2 in different ways to produce a wide variety of organic surfaces.
+
+  ```csharp
+  Float2 cell = Noise.Cellular2D(uv * 5f);
+  float f1 = cell.X;
+  float f2 = cell.Y;
+
+  float borders  = Maths.Smoothstep(0.02f, 0.05f, f2 - f1); // cell edge lines
+  float interior = f1;                                         // per-cell gradient
+  float cracks   = 1f - Maths.Saturate(f1 * 8f);             // sharp crack lines
+  ```
+</Accordion>

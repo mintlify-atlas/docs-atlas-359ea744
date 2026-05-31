@@ -1,0 +1,512 @@
+---
+title: "Bounding Volumes: AABB, Sphere, Frustum, Plane, Ray, and More"
+sidebarTitle: "Bounding Volumes"
+description: "Reference for AABB, Sphere, Frustum, Plane, Ray, Cone, Triangle, and LineSegment — construction, properties, and the IBoundingShape interface."
+---
+
+Prowl.Vector ships eight bounding volume and shape types, all living in the `Prowl.Vector` namespace. Five of them — `AABB`, `Sphere`, `Frustum`, `Cone`, `Triangle`, and `LineSegment` — implement `IBoundingShape` and are therefore compatible with the GJK collision-detection algorithm. `Plane` and `Ray` are utility primitives that do not implement the interface but are used extensively by the intersection and ray-cast APIs.
+
+---
+
+## IBoundingShape
+
+```csharp
+namespace Prowl.Vector
+{
+    public interface IBoundingShape
+    {
+        Float3 SupportMap(Float3 direction);
+        GeometryData GetGeometryData(int resolution = 16);
+    }
+}
+```
+
+`SupportMap(Float3 direction)` returns the point on the shape that is farthest in the given direction. The direction does not need to be normalized. This single method is the only requirement for a shape to participate in GJK collision detection — the algorithm calls `SupportMap` on both shapes to build a simplex in the Minkowski difference space and determine whether the origin is inside it.
+
+`GetGeometryData(int resolution)` generates renderable geometry for the shape as a `GeometryData` structure containing vertices, edges, and faces. It is used by editor tools and debug visualizers.
+
+---
+
+## AABB
+
+An Axis-Aligned Bounding Box defined by two `Float3` corners.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Min` | `Float3` | The minimum corner. Always `≤ Max` after construction. |
+| `Max` | `Float3` | The maximum corner. |
+
+### Constructors
+
+```csharp
+// From two corner points (min/max order is enforced automatically)
+new AABB(Float3 min, Float3 max)
+
+// From six individual float components
+new AABB(float minX, float minY, float minZ, float maxX, float maxY, float maxZ)
+
+// From a center point and a size vector (static factory)
+AABB.FromCenterAndSize(Float3 center, Float3 size)
+```
+
+### Key Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Center` | `Float3` | `(Min + Max) / 2` |
+| `Size` | `Float3` | `Max - Min` |
+| `Extents` | `Float3` | `Size / 2` (half-size) |
+| `Volume` | `float` | `Size.X * Size.Y * Size.Z` |
+| `SurfaceArea` | `float` | `2 * (xy + yz + zx)` |
+
+### Key Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `Contains(Float3 point)` | `bool` | True if the point is inside or on the boundary. |
+| `Contains(AABB other)` | `bool` | True if `other` is completely inside this AABB. |
+| `Intersects(AABB other)` | `bool` | True if the two AABBs overlap or touch. |
+| `Intersects(Sphere sphere)` | `bool` | True if the AABB overlaps the sphere. |
+| `Encapsulate(Float3 point)` | `void` | Expands the AABB in-place to include a point. |
+| `Encapsulate(AABB other)` | `void` | Expands the AABB in-place to include another AABB. |
+| `Encapsulating(Float3)` | `AABB` | Returns a new AABB that encapsulates the point. |
+| `Expand(float amount)` | `void` | Expands all sides outward by `amount`. |
+| `Expand(Float3 expansion)` | `void` | Expands each axis independently. |
+| `Expanded(float amount)` | `AABB` | Non-mutating version of `Expand`. |
+| `ClosestPointTo(Float3)` | `Float3` | Nearest point on the AABB surface to the given point. |
+| `GetCorner(int index)` | `Float3` | One of the 8 corners (index 0–7). |
+| `GetCorners()` | `Float3[]` | All 8 corners. |
+| `TransformBy(Float4x4)` | `AABB` | Returns a new world-space AABB wrapping the transformed corners. |
+| `ClippedBy(AABB other)` | `AABB` | Returns the intersection AABB, or a zero AABB if none. |
+| `AABB.FromPoints(Float3[])` | `AABB` | Smallest AABB containing all given points. |
+| `AABB.FromSphere(Sphere)` | `AABB` | AABB that tightly wraps a sphere. |
+
+### Example
+
+```csharp
+using Prowl.Vector;
+
+// Build an AABB centered at the origin, 4 units on each side
+var box = AABB.FromCenterAndSize(new Float3(0, 0, 0), new Float3(4, 4, 4));
+
+// Grow to include a point outside the box
+box.Encapsulate(new Float3(10, 0, 0));
+
+Console.WriteLine(box.Center); // (5, 0, 0)
+Console.WriteLine(box.Size);   // (12, 4, 4)
+
+// Test containment
+bool inside = box.Contains(new Float3(3, 0, 0)); // true
+
+// AABB vs AABB overlap
+var other = new AABB(new Float3(8, -1, -1), new Float3(15, 1, 1));
+bool overlaps = box.Intersects(other); // true
+```
+
+---
+
+## Sphere
+
+A sphere defined by a center point and a radius.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Center` | `Float3` | World-space center of the sphere. |
+| `Radius` | `float` | Radius; always `≥ 0`. |
+
+### Constructors
+
+```csharp
+new Sphere(Float3 center, float radius)
+new Sphere(float x, float y, float z, float radius)
+```
+
+### Key Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Diameter` | `float` | `Radius * 2` |
+| `SurfaceArea` | `float` | `4πr²` |
+| `Volume` | `float` | `(4/3)πr³` |
+| `Circumference` | `float` | `2πr` |
+
+### Key Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `Contains(Float3 point)` | `bool` | True if the point is inside or on the surface. |
+| `Contains(Sphere other)` | `bool` | True if `other` is completely inside this sphere. |
+| `Intersects(Sphere other)` | `bool` | True if the two spheres overlap or touch. |
+| `Intersects(AABB aabb)` | `bool` | True if the sphere overlaps the AABB. |
+| `GetSignedDistanceToPoint(Float3)` | `float` | Positive outside, negative inside, zero on surface. |
+| `ClosestPointTo(Float3)` | `Float3` | Nearest point on the sphere surface. |
+| `Encapsulate(Float3)` | `void` | Grows radius to include the point. |
+| `Encapsulate(Sphere)` | `void` | Grows radius to include another sphere. |
+| `Sphere.FromDiameter(Float3 a, Float3 b)` | `Sphere` | Sphere whose diameter is the segment `a→b`. |
+| `Sphere.FromPoints(Float3[])` | `Sphere` | Approximate bounding sphere for a point cloud. |
+
+### Example
+
+```csharp
+using Prowl.Vector;
+
+var sphere = new Sphere(Float3.Zero, 5.0f);
+bool hit = sphere.Contains(new Float3(3, 0, 4)); // true  (dist = 5 = radius)
+
+// Signed distance: negative means inside
+float d = sphere.GetSignedDistanceToPoint(new Float3(0, 3, 0)); // -2.0
+```
+
+---
+
+## Frustum
+
+A view frustum defined by six planes: Near, Far, Left, Right, Top, and Bottom.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Planes` | `Plane[]` | Array of 6 planes (always length 6). |
+
+Convenience properties `Near`, `Far`, `Left`, `Right`, `Top`, and `Bottom` index directly into `Planes[0..5]`.
+
+### Constructors
+
+```csharp
+// From an array of exactly 6 planes (Near, Far, Left, Right, Top, Bottom)
+new Frustum(Plane[] planes)
+
+// From individual planes
+new Frustum(Plane near, Plane far, Plane left, Plane right, Plane top, Plane bottom)
+```
+
+### Static Factory Methods
+
+| Method | Description |
+|--------|-------------|
+| `Frustum.FromMatrix(Float4x4 viewProjection)` | Extracts 6 planes from a combined view-projection matrix using the Gribb/Hartmann method. |
+| `Frustum.FromMatrices(Float4x4 view, Float4x4 proj)` | Convenience overload that multiplies the matrices first. |
+| `Frustum.FromCamera(position, forward, up, fovY, aspect, near, far)` | Constructs a perspective frustum from camera parameters. |
+| `Frustum.CreateOrthographic(left, right, bottom, top, near, far)` | Constructs an orthographic frustum. |
+
+### Key Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `Contains(Float3 point)` | `bool` | True if the point is inside all 6 planes. |
+| `Intersects(Sphere sphere)` | `bool` | True if the sphere is not completely behind any plane. |
+| `Intersects(AABB aabb)` | `bool` | True if the AABB is not completely behind any plane. |
+| `ClassifyPoint(Float3)` | `int` | Number of planes the point is behind (0 = fully inside). |
+| `ClassifySphere(Sphere)` | `int` | Planes the sphere is completely behind. |
+| `ClassifyAABB(AABB)` | `int` | Planes the AABB is completely behind. |
+| `GetCorners()` | `Float3[]` | The 8 frustum corners (three-plane intersections). |
+| `Transform(Float4x4)` | `Frustum` | Returns a new frustum transformed by the matrix. |
+| `Expand(float amount)` | `void` | Shifts all planes outward by `amount`. |
+
+### Example
+
+```csharp
+using Prowl.Vector;
+
+// Build a frustum from a view-projection matrix
+var frustum = Frustum.FromMatrix(viewProjMatrix);
+
+// Frustum culling: skip objects whose bounding sphere is outside
+var sphere = new Sphere(objectPosition, objectRadius);
+if (!frustum.Intersects(sphere))
+    return; // cull
+
+// Point containment check
+bool visible = frustum.Contains(lightPosition);
+```
+
+---
+
+## Plane
+
+An infinite plane defined by a unit normal and a signed distance from the origin. The plane equation is `dot(Normal, point) = D`.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Normal` | `Float3` | Unit normal vector (normalized on construction). |
+| `D` | `float` | Signed distance from the origin along the normal. |
+
+### Constructors
+
+```csharp
+// From a normal and distance — both are normalized together
+new Plane(Float3 normal, float d)
+
+// From three points in counter-clockwise order
+new Plane(Float3 point1, Float3 point2, Float3 point3)
+
+// Static factory: from a normal and a point on the plane
+Plane.FromNormalAndPoint(Float3 normal, Float3 pointOnPlane)
+```
+
+### Key Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `GetSignedDistanceToPoint(Float3)` | `float` | Positive if on the normal side, negative if behind. |
+| `GetDistanceToPoint(Float3)` | `float` | Absolute distance to the plane. |
+| `ClosestPointOnPlane(Float3)` | `Float3` | Projects a point onto the plane. |
+| `GetSide(Float3 point)` | `bool` | True if the point is on the positive (normal) side. |
+| `SameSide(Float3 a, Float3 b)` | `bool` | True if both points are on the same side. |
+| `Flip()` | `void` | Reverses the normal and negates D in-place. |
+| `Flipped()` | `Plane` | Returns a plane facing the opposite direction. |
+| `Translate(Float3)` | `void` | Shifts the plane along the normal. |
+
+### Example
+
+```csharp
+using Prowl.Vector;
+
+// The XZ ground plane (normal = +Y, passing through the origin)
+var ground = Plane.FromNormalAndPoint(Float3.UnitY, Float3.Zero);
+
+// Classify a point
+float signedDist = ground.GetSignedDistanceToPoint(new Float3(0, 3, 0)); // +3 (above)
+float signedDist2 = ground.GetSignedDistanceToPoint(new Float3(0, -1, 0)); // -1 (below)
+
+// Project a point down onto the ground plane
+Float3 projected = ground.ClosestPointOnPlane(new Float3(5, 7, 2));
+// projected = (5, 0, 2)
+```
+
+---
+
+## Ray
+
+A ray with an origin and a normalized direction.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Origin` | `Float3` | The start point of the ray. |
+| `Direction` | `Float3` | Unit direction vector (normalized in the constructor). |
+
+### Constructor
+
+```csharp
+// direction is automatically normalized
+new Ray(Float3 origin, Float3 direction)
+```
+
+### Key Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `GetPoint(float distance)` | `Float3` | `Origin + Direction * distance` |
+| `Intersects(Plane, out float distance)` | `bool` | Ray–plane intersection. |
+| `Intersects(Triangle, out float dist, out float u, out float v)` | `bool` | Möller–Trumbore ray–triangle test. |
+| `Intersects(AABB, out float tMin, out float tMax)` | `bool` | Slab-method ray–AABB test. |
+| `Intersects(Sphere, out float t0, out float t1)` | `bool` | Ray–sphere test; `t0 ≤ t1`. |
+| `Ray.ScreenPointToRay(screenPos, viewMatrix, projMatrix, width, height)` | `Ray` | Unprojection from 2D screen coordinates (DirectX-style depth). |
+
+### Example
+
+```csharp
+using Prowl.Vector;
+
+var ray = new Ray(new Float3(0, 10, 0), new Float3(0, -1, 0));
+
+// Hit the ground plane
+var ground = Plane.FromNormalAndPoint(Float3.UnitY, Float3.Zero);
+if (ray.Intersects(ground, out float dist))
+{
+    Float3 hitPoint = ray.GetPoint(dist); // (0, 0, 0)
+}
+
+// Hit an AABB
+var box = new AABB(new Float3(-1, -1, -1), new Float3(1, 1, 1));
+if (ray.Intersects(box, out float tMin, out float tMax))
+{
+    Float3 entry = ray.GetPoint(tMin);
+    Float3 exit  = ray.GetPoint(tMax);
+}
+```
+
+---
+
+## Cone
+
+A cone defined by an apex point, a base-center point, and a base radius. The cone axis runs from `Apex` to `BaseCenter`.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Apex` | `Float3` | The tip of the cone. |
+| `BaseCenter` | `Float3` | Center of the base disk. |
+| `BaseRadius` | `float` | Radius of the base disk. |
+
+### Constructors
+
+```csharp
+new Cone(Float3 apex, Float3 baseCenter, float baseRadius)
+new Cone(float apexX, float apexY, float apexZ,
+         float baseCenterX, float baseCenterY, float baseCenterZ,
+         float baseRadius)
+
+// Static factory: apex + axis direction + height + radius
+Cone.FromAxisDirection(Float3 apex, Float3 axisDirection, float height, float baseRadius)
+```
+
+### Key Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Height` | `float` | Distance from apex to base center. |
+| `AxisDirection` | `Float3` | Normalized vector from apex to base center. |
+| `Volume` | `float` | `(π r² h) / 3` |
+| `LateralSurfaceArea` | `float` | `π r s` where `s` is the slant height. |
+| `TotalSurfaceArea` | `float` | Lateral area + base area. |
+
+### Example
+
+```csharp
+using Prowl.Vector;
+
+// Flashlight cone: apex at camera, pointing forward 5 units, 1.5 unit radius
+var cone = Cone.FromAxisDirection(
+    apex: new Float3(0, 2, 0),
+    axisDirection: new Float3(0, 0, 1),
+    height: 5.0f,
+    baseRadius: 1.5f
+);
+
+bool hit = cone.Contains(new Float3(0, 2, 3)); // true — on axis, inside
+```
+
+---
+
+## Triangle
+
+A triangle defined by three `Float3` vertices.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `V0` | `Float3` | First vertex. |
+| `V1` | `Float3` | Second vertex. |
+| `V2` | `Float3` | Third vertex. |
+
+### Constructor
+
+```csharp
+new Triangle(Float3 v0, Float3 v1, Float3 v2)
+```
+
+### Key Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Normal` | `Float3` | Cross product `(V1−V0) × (V2−V0)` — not normalized. |
+| `NormalizedNormal` | `Float3` | Normalized face normal. |
+| `Area` | `float` | `Length(Normal) / 2` |
+| `Centroid` | `Float3` | `(V0 + V1 + V2) / 3` |
+| `Perimeter` | `float` | Sum of edge lengths. |
+
+### Key Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `GetBarycentricCoordinates(Float3, out u, out v)` | `void` | Barycentric coords of a point. `w = 1−u−v`. |
+| `GetPointFromBarycentric(float u, float v)` | `Float3` | Point from barycentric coordinates. |
+| `ClosestPointTo(Float3)` | `Float3` | Nearest point on the triangle. |
+| `GetPlane()` | `Plane` | The plane containing the triangle. |
+| `IntersectsWith(Triangle)` | `bool` | SAT-based triangle–triangle test. |
+| `GetAABB()` | `AABB` | Tight axis-aligned box around the triangle. |
+
+### Example
+
+```csharp
+using Prowl.Vector;
+
+var tri = new Triangle(
+    new Float3(0, 0, 0),
+    new Float3(1, 0, 0),
+    new Float3(0, 1, 0)
+);
+
+Console.WriteLine(tri.Normal);   // (0, 0, 1)  — pointing +Z
+Console.WriteLine(tri.Area);     // 0.5
+
+// Closest point on triangle to an arbitrary point
+Float3 closest = tri.ClosestPointTo(new Float3(0.5f, 0.5f, 5.0f));
+// closest = (0.25, 0.5, 0)
+```
+
+---
+
+## LineSegment
+
+A finite line segment between two `Float3` endpoints.
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `Start` | `Float3` | Starting endpoint. |
+| `End` | `Float3` | Ending endpoint. |
+
+### Constructors
+
+```csharp
+new LineSegment(Float3 start, Float3 end)
+new LineSegment(float startX, float startY, float startZ,
+                float endX,   float endY,   float endZ)
+
+// From a Ray with a fixed length
+LineSegment.FromRay(Ray ray, float length)
+```
+
+### Key Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `Center` | `Float3` | Midpoint: `(Start + End) / 2` |
+| `Length` | `float` | Euclidean length. |
+| `LengthSquared` | `float` | Squared length (cheaper than `Length`). |
+| `Direction` | `Float3` | `End − Start` (not normalized). |
+| `NormalizedDirection` | `Float3` | Normalized direction vector. |
+
+### Key Methods
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `GetPoint(float t)` | `Float3` | Point at parameter `t` (0 = Start, 1 = End). |
+| `GetPointClamped(float t)` | `Float3` | Same as `GetPoint` but clamps `t` to [0, 1]. |
+| `ClosestPointTo(Float3)` | `Float3` | Nearest point on the segment. |
+| `GetDistanceToPoint(Float3)` | `float` | Distance from a point to the segment. |
+| `IntersectsPlane(Plane, out Float3 pt)` | `bool` | Segment–plane intersection point. |
+| `GetClosestPoints(LineSegment, out pt1, out pt2, out t1, out t2)` | `void` | Closest pair of points between two segments. |
+| `Subdivide(int)` | `Float3[]` | Array of subdivision points including endpoints. |
+
+### Example
+
+```csharp
+using Prowl.Vector;
+
+var seg = new LineSegment(new Float3(0, 0, 0), new Float3(10, 0, 0));
+
+Console.WriteLine(seg.Center); // (5, 0, 0)
+Console.WriteLine(seg.Length); // 10
+
+// Point closest to (5, 3, 0) on the segment
+Float3 closest = seg.ClosestPointTo(new Float3(5, 3, 0));
+// closest = (5, 0, 0) — projection lands on the segment
+
+// Parametric sampling
+Float3 quarter = seg.GetPoint(0.25f); // (2.5, 0, 0)
+```

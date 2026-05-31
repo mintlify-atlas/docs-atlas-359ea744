@@ -1,0 +1,327 @@
+---
+title: "Vectors in Prowl.Vector: Double, Float, and Int Types"
+sidebarTitle: "Vectors"
+description: "Comprehensive guide to Double2/3/4, Float2/3/4, and Int2/3/4 vector types — construction, arithmetic, swizzles, and static operations."
+---
+
+Prowl.Vector provides nine first-class vector types covering the most common precisions and component counts needed in 3D applications. The **Double** family (`Double2`, `Double3`, `Double4`) uses 64-bit `double` components for high-precision physics or geometry work. The **Float** family (`Float2`, `Float3`, `Float4`) uses 32-bit `float` components and is the standard choice for real-time rendering. The **Int** family (`Int2`, `Int3`, `Int4`) uses 32-bit `int` components and is ideal for grid coordinates, pixel positions, and bitwise operations. All types are serializable value structs in the `Prowl.Vector` namespace and implement `IEquatable<T>` and `IFormattable`.
+
+---
+
+## Type Overview
+
+| Type      | Precision | Components | Namespace      |
+|-----------|-----------|------------|----------------|
+| `Double2` | `double`  | X, Y       | `Prowl.Vector` |
+| `Double3` | `double`  | X, Y, Z    | `Prowl.Vector` |
+| `Double4` | `double`  | X, Y, Z, W | `Prowl.Vector` |
+| `Float2`  | `float`   | X, Y       | `Prowl.Vector` |
+| `Float3`  | `float`   | X, Y, Z    | `Prowl.Vector` |
+| `Float4`  | `float`   | X, Y, Z, W | `Prowl.Vector` |
+| `Int2`    | `int`     | X, Y       | `Prowl.Vector` |
+| `Int3`    | `int`     | X, Y, Z    | `Prowl.Vector` |
+| `Int4`    | `int`     | X, Y, Z, W | `Prowl.Vector` |
+
+---
+
+## Construction
+
+Every vector type offers several constructor overloads so you can build a vector from whatever data you have on hand.
+
+```csharp
+// --- Double3 ---
+
+// Scalar broadcast: all components set to the same value
+var a = new Double3(1.0);               // (1, 1, 1)
+
+// Individual components
+var b = new Double3(1.0, 2.0, 3.0);    // (1, 2, 3)
+
+// From a smaller vector + remaining component(s)
+var xy = new Double2(1.0, 2.0);
+var c  = new Double3(xy, 3.0);         // (1, 2, 3)
+var d  = new Double3(0.0, xy);         // (0, 1, 2)
+
+// From an array (must have at least 3 elements)
+var e = new Double3(new double[] { 4.0, 5.0, 6.0 });
+
+// From a ReadOnlySpan<double> or Span<double>
+ReadOnlySpan<double> span = stackalloc double[] { 7.0, 8.0, 9.0 };
+var f = new Double3(span);
+
+// Copy constructor
+var g = new Double3(b);
+
+// --- Float3 ---
+var fv = new Float3(1.0f, 2.0f, 3.0f);
+
+// Float3 also accepts a Float2 + z component
+var f2  = new Float2(1.0f, 2.0f);
+var fv2 = new Float3(f2, 3.0f);
+
+// --- Int3 ---
+var iv  = new Int3(10, 20, 30);
+var iv2 = new Int3(5);                  // (5, 5, 5)
+
+// Int3 from an Int2 + z
+var i2  = new Int2(10, 20);
+var iv3 = new Int3(i2, 30);
+```
+
+<Tip>
+All vector constructors validate array and span lengths and throw `ArgumentException` if too few elements are provided.
+</Tip>
+
+---
+
+## Arithmetic Operations
+
+All vector types support the standard arithmetic operators component-wise. Each operator has both vector–vector and vector–scalar (commutative) overloads, plus a unary negation operator.
+
+```csharp
+var a = new Double3(1.0, 2.0, 3.0);
+var b = new Double3(4.0, 5.0, 6.0);
+
+// Vector–vector arithmetic (component-wise)
+Double3 sum  = a + b;   // (5, 7, 9)
+Double3 diff = a - b;   // (-3, -3, -3)
+Double3 prod = a * b;   // (4, 10, 18)
+Double3 quot = a / b;   // (0.25, 0.4, 0.5)
+Double3 rem  = a % b;   // (1, 2, 3)
+
+// Vector–scalar (scalar may be on either side)
+Double3 scaled = a * 2.0;       // (2, 4, 6)
+Double3 offset = a + 10.0;      // (11, 12, 13)
+Double3 inv    = 1.0 / a;       // (1, 0.5, 0.333...)
+
+// Unary negation
+Double3 neg = -a;               // (-1, -2, -3)
+
+// The same operators apply to Float3 and Int3
+var fa = new Float3(1f, 2f, 3f);
+Float3 fScaled = fa * 3f;       // (3, 6, 9)
+
+var ia = new Int3(4, 8, 12);
+Int3 iHalf = ia / 2;            // (2, 4, 6)
+
+// Int types additionally expose bitwise operators
+var flags = new Int2(0b1010, 0b1100);
+Int2 andResult = flags & new Int2(0b1111, 0b0101); // (0b1010, 0b0100)
+Int2 shifted   = flags >> 1;                        // (0b0101, 0b0110)
+```
+
+---
+
+## Static Operations
+
+The static methods live directly on each vector type and are marked `[MethodImpl(AggressiveInlining)]` for performance-critical paths.
+
+### Dot and Cross Products
+
+```csharp
+// Dot product — available on all types
+double d = Double3.Dot(new Double3(1, 0, 0), new Double3(0, 1, 0)); // 0.0
+float  f = Float3.Dot(new Float3(1f, 2f, 3f), new Float3(4f, 5f, 6f)); // 32f
+int    i = Int3.Dot(new Int3(1, 2, 3), new Int3(4, 5, 6));              // 32
+
+// Cross product — available on Double3 and Float3 only
+Double3 cross = Double3.Cross(Double3.UnitX, Double3.UnitY); // (0, 0, 1)
+Float3  fcross = Float3.Cross(Float3.UnitY, Float3.UnitZ);   // (1, 0, 0)
+```
+
+### Normalize and Length
+
+```csharp
+var v = new Double3(3.0, 4.0, 0.0);
+
+double len    = Double3.Length(v);          // 5.0
+double lenSq  = Double3.LengthSquared(v);   // 25.0
+Double3 unit  = Double3.Normalize(v);       // (0.6, 0.8, 0)
+```
+
+<Tip>
+`Normalize` returns `Double3.Zero` (or `Float3.Zero`) if the input length is at or below `double.Epsilon` / `float.Epsilon`, so it is safe to call on zero-length vectors.
+</Tip>
+
+### Distance
+
+```csharp
+Double3 p1 = new Double3(0, 0, 0);
+Double3 p2 = new Double3(3, 4, 0);
+
+double dist   = Double3.Distance(p1, p2);        // 5.0
+double distSq = Double3.DistanceSquared(p1, p2); // 25.0  (avoids sqrt)
+```
+
+### Lerp (Linear Interpolation)
+
+`Maths.Lerp` is the recommended way to interpolate between two scalars. For vectors, construct the interpolated result component-wise, or use the built-in `MoveTowards` helper:
+
+```csharp
+// Component-wise lerp using arithmetic operators
+Double3 start  = new Double3(0, 0, 0);
+Double3 end    = new Double3(10, 20, 30);
+double  t      = 0.5;
+Double3 mid    = start + (end - start) * t; // (5, 10, 15)
+
+// Move a fixed step per frame towards a target
+Double3 current = new Double3(0, 0, 0);
+Double3 target  = new Double3(100, 0, 0);
+current = Double3.MoveTowards(current, target, maxDistanceDelta: 5.0);
+// current == (5, 0, 0)
+```
+
+### Slerp (Spherical Linear Interpolation)
+
+Available on `Double2`, `Double3`, `Double4`, `Float2`, `Float3`, and `Float4` for interpolating direction vectors while preserving arc length.
+
+```csharp
+Double3 north = Double3.UnitZ;
+Double3 east  = Double3.UnitX;
+
+// t is clamped to [0, 1]
+Double3 northeast = Double3.Slerp(north, east, 0.5);
+
+// Unclamped version (allows t outside [0, 1])
+Double3 extended = Double3.SlerpUnclamped(north, east, 1.5);
+```
+
+<Tip>
+Use `Slerp` on direction vectors when you need constant angular velocity — for example, rotating a camera direction over time. For quaternion rotations prefer `Quaternion.Slerp`.
+</Tip>
+
+### Min, Max, and Clamp
+
+These are provided by the `Maths` static class and work on scalars. To clamp a vector, apply them component-wise:
+
+```csharp
+// Clamp each component individually
+Double3 v     = new Double3(-1.5, 0.5, 2.5);
+Double3 clamped = new Double3(
+    Maths.Clamp(v.X, 0.0, 1.0),
+    Maths.Clamp(v.Y, 0.0, 1.0),
+    Maths.Clamp(v.Z, 0.0, 1.0)
+); // (0, 0.5, 1)
+```
+
+### Additional Geometry Helpers
+
+```csharp
+// Angle between two vectors (radians)
+double angle = Double3.AngleBetween(Double3.UnitX, Double3.UnitY); // π/2
+
+// Signed angle around a reference axis
+double signed = Double3.SignedAngleBetween(Double3.UnitX, Double3.UnitY, Double3.UnitZ);
+
+// Reflect a direction off a surface normal
+Double3 incident = new Double3(1, -1, 0);
+Double3 normal   = Double3.UnitY;
+Double3 reflected = Double3.Reflect(incident, normal); // (1, 1, 0)
+
+// Project a onto b
+Double3 projected = Double3.Project(new Double3(3, 4, 0), Double3.UnitX); // (3, 0, 0)
+
+// Gram-Schmidt orthonormalization
+Double3 n = new Double3(0, 1, 0.1);
+Double3 t = new Double3(1, 0, 0);
+Double3.OrthoNormalize(ref n, ref t);
+```
+
+---
+
+## Swizzling
+
+All nine vector types support GLSL-style swizzle properties, auto-generated for every permutation of their component names. Swizzles that reorder unique components (no repeated components) are both readable **and** writable.
+
+```csharp
+var v = new Double3(1.0, 2.0, 3.0);
+
+// --- 2-component swizzles (return Double2) ---
+Double2 xy = v.XY;   // (1, 2)
+Double2 yz = v.YZ;   // (2, 3)
+Double2 zx = v.ZX;   // (3, 1)
+
+// Writable — assigns back to the source components
+v.YZ = new Double2(20.0, 30.0); // v is now (1, 20, 30)
+
+// --- 3-component swizzles (return Double3) ---
+Double3 xyz  = v.XYZ;  // identity
+Double3 zyx  = v.ZYX;  // (30, 20, 1)
+Double3 xxx  = v.XXX;  // (1, 1, 1)  — read-only (repeated component)
+
+// --- 4-component swizzles on Double3 (return Double4) ---
+Double4 xyzw = v.XYZX; // (1, 20, 30, 1)
+
+// Float types work the same way
+var fv = new Float3(4f, 5f, 6f);
+Float2 fxy = fv.XY;    // (4, 5)
+
+// Int types also have full swizzle support
+var iv = new Int3(7, 8, 9);
+Int2 iyz = iv.YZ;      // (8, 9)
+```
+
+<Tip>
+Swizzles that reference a component more than once (e.g., `v.XX`, `v.ZZZ`) are **read-only**. Any swizzle where each component appears exactly once is also settable.
+</Tip>
+
+---
+
+## Static Constants
+
+3D types expose four (or five for 4-component types) static constant vectors for common unit directions and boundary values.
+
+```csharp
+// Double3
+Double3 z  = Double3.Zero;  // (0, 0, 0)
+Double3 o  = Double3.One;   // (1, 1, 1)
+Double3 ux = Double3.UnitX; // (1, 0, 0)
+Double3 uy = Double3.UnitY; // (0, 1, 0)
+Double3 uz = Double3.UnitZ; // (0, 0, 1)
+
+// Float3 — identical naming
+Float3 fz  = Float3.Zero;
+Float3 fux = Float3.UnitX;
+
+// Int3
+Int3 iz  = Int3.Zero;
+Int3 iux = Int3.UnitX;
+
+// Double4 / Float4 — also expose UnitW
+Double4 uw = Double4.UnitW; // (0, 0, 0, 1)
+```
+
+---
+
+## Conversion
+
+Prowl.Vector defines a clear set of implicit and explicit casts between the three precision families. **Widening** conversions (to higher precision) are implicit; **narrowing** conversions (to lower precision or integer types) require an explicit cast to make the potential data loss visible.
+
+```csharp
+// Float3 → Double3 (implicit, no data loss)
+Float3  f3 = new Float3(1f, 2f, 3f);
+Double3 d3 = f3;                        // implicit
+
+// Double3 → Float3 (explicit, precision loss)
+Double3 d3b = new Double3(1.0, 2.0, 3.0);
+Float3  f3b = (Float3)d3b;
+
+// Int3 → Double3 (explicit)
+Int3    i3  = new Int3(4, 5, 6);
+Double3 d3c = (Double3)i3;
+
+// Int3 → Float3 (explicit)
+Float3 f3c = (Float3)i3;
+
+// Double2 ↔ Double3 (explicit in both directions, zero-fills or truncates)
+Double3 from2  = (Double3)new Double2(1.0, 2.0); // (1, 2, 0)
+Double2 from3  = (Double2)new Double3(1.0, 2.0, 3.0); // (1, 2)
+
+// Float2/3 interop with System.Numerics
+System.Numerics.Vector3 sysVec = f3b; // implicit
+Float3 back = sysVec;                  // implicit
+```
+
+<Tip>
+`Float2` and `Float3` carry implicit casts to and from `System.Numerics.Vector2` / `Vector3`, making them drop-in compatible with libraries that use the BCL types such as `System.Numerics` and `System.Drawing`.
+</Tip>

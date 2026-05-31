@@ -1,0 +1,254 @@
+---
+title: "Spline: Parametric Curves in 3D Space"
+sidebarTitle: "Spline"
+description: "Build and sample parametric 3D spline curves with SplineFrame — position, tangent, up, curvature, and torsion at any point along the curve."
+---
+
+`Spline` (in the `Prowl.Vector` namespace) is a struct that represents a parametric 3D curve defined by an array of control points. Sampling it at a parameter `t ∈ [0, 1]` yields a `SplineFrame` — a complete Frenet–Serret coordinate frame that includes position, forward tangent, up vector, right vector, curvature, and torsion.
+
+Five interpolation modes are supported out of the box: **Linear**, **Catmull-Rom**, **Cubic Bezier**, **Uniform B-spline**, and **Hermite**. All modes share the same evaluation API; the type is set at construction time.
+
+---
+
+## SplineFrame
+
+`SplineFrame` is the return type of `Spline.EvaluateFrame`. It gives you everything you need to orient an object along the curve.
+
+```csharp
+public struct SplineFrame
+{
+    public Float3 Position;   // World-space point on the spline
+    public Float3 Forward;    // Normalized tangent (direction of travel)
+    public Float3 Up;         // Up vector (depends on UpVectorMethod)
+    public Float3 Right;      // Cross product of Forward and Up
+    public float  Curvature;  // Curvature κ at this point (FrenetFrame only)
+    public float  Torsion;    // Torsion τ at this point (FrenetFrame only)
+}
+```
+
+---
+
+## Construction
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ControlPoints` | `Float3[]` | The control points that define the curve. |
+| `Tangents` | `Float3[]?` | Tangent vectors — used only for `SplineType.Hermite`. |
+| `Type` | `SplineType` | Interpolation mode. |
+| `IsClosed` | `bool` | When `true`, the spline loops back to the first control point. |
+| `Tension` | `float` | Tension parameter for Catmull-Rom (0 = standard). |
+| `WorldUpVector` | `Float3` | Reference up vector for `UpVectorMethod.FixedWorldUp` (default `Float3.UnitY`). |
+| `CustomUpVectors` | `Float3[]?` | Per-control-point up vectors for `UpVectorMethod.Custom`. |
+
+### SplineType Enum
+
+| Value | Description |
+|-------|-------------|
+| `Linear` | Straight-line segments between control points. |
+| `CatmullRom` | Smooth cardinal spline passing through all control points. |
+| `Bezier` | Cubic Bezier; requires `3n + 1` control points for `n` segments. |
+| `BSpline` | Uniform cubic B-spline; requires at least 4 control points. |
+| `Hermite` | Cubic Hermite; requires matching tangent vectors per control point. |
+
+### Constructor
+
+```csharp
+new Spline(Float3[] controlPoints,
+           SplineType type    = SplineType.CatmullRom,
+           bool closed        = false,
+           float tension      = 0.0f)
+
+// Hermite spline with explicit tangents
+new Spline(Float3[] controlPoints, Float3[] tangents, bool closed = false)
+```
+
+### Static Factory Methods
+
+```csharp
+Spline.CreateLinear(Float3[] points, bool closed = false)
+Spline.CreateCatmullRom(Float3[] points, bool closed = false, float tension = 0.0f)
+Spline.CreateBezier(Float3[] points)              // points.Length must be 3n+1
+Spline.CreateBSpline(Float3[] points, bool closed = false)
+Spline.CreateHermite(Float3[] points, bool closed = false)
+Spline.CreateHermiteWithTangents(Float3[] points, Float3[] tangents, bool closed = false)
+
+// Preset curves
+Spline.CreateCircularArc(Float3 center, float radius, float startAngle, float endAngle, int segments = 16)
+Spline.CreateHelix(Float3 center, float radius, float pitch, float turns, int segments = 16)
+```
+
+---
+
+## Sampling
+
+### Evaluate (position only)
+
+```csharp
+Float3 position = spline.Evaluate(float t); // t in [0, 1]
+```
+
+### EvaluateDerivative (tangent vector)
+
+```csharp
+Float3 tangent = spline.EvaluateDerivative(float t);
+```
+
+### EvaluateFrame (full coordinate frame)
+
+```csharp
+SplineFrame frame = spline.EvaluateFrame(float t,
+    UpVectorMethod upMethod = UpVectorMethod.FixedWorldUp);
+```
+
+#### UpVectorMethod Options
+
+| Value | Description |
+|-------|-------------|
+| `FixedWorldUp` | The up vector is derived from `WorldUpVector` (default `Float3.UnitY`). Stable but may flip near vertical sections. |
+| `FrenetFrame` | Uses the second derivative to compute the principal normal. Also populates `Curvature` and `Torsion`. May be undefined on straight sections. |
+| `Custom` | Interpolates between per-control-point up vectors stored in `CustomUpVectors`. |
+
+### EvaluateFrames (bulk sampling)
+
+```csharp
+SplineFrame[] frames = spline.EvaluateFrames(int sampleCount,
+    UpVectorMethod upMethod = UpVectorMethod.FixedWorldUp);
+```
+
+Generates `sampleCount` frames at uniformly spaced `t` values.
+
+### SampleUniform / SampleUniformLength
+
+```csharp
+Float3[] points = spline.SampleUniform(int sampleCount);
+// Parameter-uniform: evenly spaced in t, not necessarily in arc length.
+
+Float3[] points = spline.SampleUniformLength(int sampleCount);
+// Arc-length-uniform: evenly spaced along the curve in world units.
+```
+
+### Arc Length
+
+```csharp
+float totalLength = spline.GetLength(int subdivisions = 100);
+
+// Parameter → arc length
+float lengthToT    = spline.GetLengthUpToParameter(float t, int subdivisions = 100);
+
+// Arc length → parameter (binary search, max 50 iterations)
+float t = spline.GetParameterAtLength(float targetLength);
+```
+
+### Closest Point on Spline
+
+```csharp
+(Float3 Point, float Parameter) result = spline.GetClosestPoint(Float3 point, int subdivisions = 100);
+```
+
+---
+
+## Utility Methods
+
+| Method | Description |
+|--------|-------------|
+| `AddControlPoint(Float3)` | Appends a control point. |
+| `InsertControlPoint(int, Float3)` | Inserts at an index. |
+| `RemoveControlPoint(int)` | Removes by index. |
+| `SetTangent(int, Float3)` | Sets a Hermite tangent at a control point index. |
+| `Reverse()` | Reverses the direction of the spline in-place. |
+| `Reversed()` | Returns a reversed copy. |
+| `Subdivide(int subdivisionsPerSegment)` | Inserts interpolated control points between existing ones. |
+| `Smooth(int iterations, float strength)` | Laplacian smoothing of control points. |
+| `GetBounds(int subdivisions)` | Returns an AABB enclosing the sampled spline. |
+
+---
+
+## Frame-to-Matrix Helpers
+
+```csharp
+// Build a Float4x4 from a SplineFrame (for use with renderers)
+Float4x4 matrix = Spline.FrameToMatrix(SplineFrame frame);
+
+// Transform a local offset (right, up, forward) by a frame
+Float3 worldPos = Spline.TransformByFrame(SplineFrame frame, Float3 localOffset);
+```
+
+---
+
+## Use Cases
+
+- **Camera paths** — smooth fly-throughs with controlled roll using `FixedWorldUp` or `Custom` up vectors.
+- **NPC / vehicle pathing** — place agents at a `SplineFrame.Position` and orient them by `SplineFrame.Forward`.
+- **Road / rail generation** — extrude a cross-section along `EvaluateFrames` to create ribbons or tubes.
+- **Procedural animation** — drive bone transforms along Hermite splines with explicit tangent control.
+
+---
+
+## Example: Placing Objects Along a Spline
+
+```csharp
+using Prowl.Vector;
+
+// Define a smooth S-curve through four world-space waypoints
+var spline = Spline.CreateCatmullRom(new Float3[]
+{
+    new Float3( 0, 0,  0),
+    new Float3( 5, 0, 10),
+    new Float3(10, 0,  5),
+    new Float3(15, 0, 15),
+});
+
+// Sample 20 evenly-spaced frames along the curve
+SplineFrame[] frames = spline.EvaluateFrames(20, UpVectorMethod.FixedWorldUp);
+
+foreach (var frame in frames)
+{
+    // frame.Position  — where to place the object
+    // frame.Forward   — which way it faces
+    // frame.Up        — its up vector
+
+    Console.WriteLine(
+        $"pos={frame.Position:F2}  fwd={frame.Forward:F2}  curvature={frame.Curvature:F4}");
+}
+```
+
+### Extruding a Cross-Section (Road Generation)
+
+```csharp
+using Prowl.Vector;
+
+var path = Spline.CreateCatmullRom(waypoints);
+float halfWidth = 2.0f;
+
+SplineFrame[] frames = path.EvaluateFrames(100);
+
+var leftEdge  = new Float3[frames.Length];
+var rightEdge = new Float3[frames.Length];
+
+for (int i = 0; i < frames.Length; i++)
+{
+    // Offset left and right from the center line
+    leftEdge[i]  = Spline.TransformByFrame(frames[i], new Float3(-halfWidth, 0, 0));
+    rightEdge[i] = Spline.TransformByFrame(frames[i], new Float3( halfWidth, 0, 0));
+}
+
+// Use leftEdge and rightEdge arrays to build a triangle strip mesh
+```
+
+### Arc-Length-Uniform Distribution
+
+```csharp
+// Place trees every 5 metres along a path
+float spacing = 5.0f;
+float total   = path.GetLength();
+
+for (float dist = 0; dist <= total; dist += spacing)
+{
+    float t = path.GetParameterAtLength(dist);
+    SplineFrame frame = path.EvaluateFrame(t);
+
+    // Spawn tree at frame.Position, oriented by frame
+}
+```

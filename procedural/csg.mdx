@@ -1,0 +1,199 @@
+---
+title: "Constructive Solid Geometry with GeometryCSG"
+sidebarTitle: "CSG Operations"
+description: "Perform boolean mesh operations — Union, Intersection, and Subtraction — on triangulated GeometryData meshes using the GeometryCSG class."
+---
+
+`GeometryCSG` (in `Prowl.Vector.Geometry`) implements Constructive Solid Geometry (CSG) boolean operations on `GeometryData` meshes. Given two solid input meshes, it computes their set-theoretic combination — union, intersection, or subtraction — and returns the result as a new `GeometryData` object. UVs stored in the loop attribute `"uv"` are carried through the operation and interpolated correctly on split triangles.
+
+---
+
+## Prerequisites: Triangulation
+
+Both input meshes **must be fully triangulated** (every face must have exactly 3 vertices) before you call any CSG method. The internal algorithm works triangle-by-triangle and cannot handle quads or N-gons.
+
+```csharp
+using Prowl.Vector.Geometry;
+
+// Option A: Triangulate a generator output
+var box = GeometryGenerator.Box(new Float3(1, 1, 1));
+GeometryOperators.Triangulate(box);  // 6 quads → 12 triangles
+
+// Option B: Use a generator that already produces triangles
+var sphere = GeometryGenerator.Icosphere(0.6f, subdivisions: 1); // all triangles already
+```
+
+<Warning>
+`GeometryCSG` throws `InvalidOperationException` if any face in either input mesh has `VertCount != 3`. Always call `GeometryOperators.Triangulate()` on both meshes before performing CSG, unless you are using an inherently triangular generator such as `Icosphere`, `Tetrahedron`, or `Octahedron`.
+</Warning>
+
+---
+
+## The `Operation` Enum
+
+```csharp
+public enum Operation
+{
+    Union,
+    Intersection,
+    Subtraction
+}
+```
+
+Pass one of these values to `PerformOperation`, or use the dedicated convenience methods.
+
+<Info>
+**What each operation produces:**
+
+- **Union** (`A ∪ B`) — all geometry that belongs to A *or* B. Overlapping interior surfaces are removed. The result is the combined outer hull.
+- **Intersection** (`A ∩ B`) — only the geometry that is inside *both* A and B. The result is the shared volume.
+- **Subtraction** (`A − B`) — geometry that is inside A but *not* inside B. B is carved out of A; the faces of B that lie inside A are flipped and retained as the inner walls of the cavity.
+</Info>
+
+---
+
+## Methods
+
+### General entry point
+
+```csharp
+public static GeometryData PerformOperation(
+    Operation operation,
+    GeometryData meshA,
+    GeometryData meshB)
+```
+
+Performs any CSG operation chosen at runtime. Both meshes must be triangulated.
+
+| Parameter   | Type              | Description                                  |
+|-------------|-------------------|----------------------------------------------|
+| `operation` | `Operation`       | `Union`, `Intersection`, or `Subtraction`    |
+| `meshA`     | `GeometryData`    | First operand (must be triangulated)         |
+| `meshB`     | `GeometryData`    | Second operand (must be triangulated)        |
+
+**Returns:** a new `GeometryData` containing the result. Neither input mesh is modified.
+
+---
+
+### Union
+
+```csharp
+public static GeometryData Union(GeometryData meshA, GeometryData meshB)
+```
+
+Returns the combined outer hull of `meshA` and `meshB` with interior surfaces removed.
+
+---
+
+### Intersect
+
+```csharp
+public static GeometryData Intersect(GeometryData meshA, GeometryData meshB)
+```
+
+Returns only the geometry that lies inside both `meshA` and `meshB`.
+
+---
+
+### Subtraction
+
+```csharp
+public static GeometryData Subtraction(GeometryData meshA, GeometryData meshB)
+```
+
+Returns `meshA` with the volume of `meshB` carved out of it (`meshA − meshB`). Faces of `meshB` that form the interior cavity walls are flipped and included in the result.
+
+---
+
+## Complete Example
+
+```csharp
+using Prowl.Vector;
+using Prowl.Vector.Geometry;
+
+// --- Build and triangulate mesh A: a box ---
+var boxA = GeometryGenerator.Box(new Float3(1, 1, 1));
+GeometryOperators.Triangulate(boxA);
+
+// --- Build and triangulate mesh B: an icosphere offset to overlap ---
+var sphereB = GeometryGenerator.Icosphere(0.7f, center: new Float3(0.4f, 0.4f, 0.4f), subdivisions: 1);
+// Icosphere is already triangulated
+
+// --- Union: combined outer hull ---
+GeometryData unionResult = GeometryCSG.Union(boxA, sphereB);
+
+// --- Intersection: shared volume only ---
+GeometryData intersectionResult = GeometryCSG.Intersect(boxA, sphereB);
+
+// --- Subtraction: box minus sphere ---
+GeometryData subtractionResult = GeometryCSG.Subtraction(boxA, sphereB);
+
+// --- Convert any result to a renderable triangle mesh ---
+GeometryData.TriangleMesh tri = unionResult.ToTriangleMesh();
+// tri.Vertices -- Float3[]
+// tri.Indices  -- uint[]
+```
+
+---
+
+## Using `PerformOperation` at Runtime
+
+```csharp
+GeometryCSG.Operation[] allOps = {
+    GeometryCSG.Operation.Union,
+    GeometryCSG.Operation.Intersection,
+    GeometryCSG.Operation.Subtraction,
+};
+
+foreach (var op in allOps)
+{
+    GeometryData result = GeometryCSG.PerformOperation(op, boxA, sphereB);
+    Console.WriteLine($"{op}: {result.Faces.Count} faces, {result.Vertices.Count} vertices");
+}
+```
+
+---
+
+## Triangle Data Helper
+
+`GeometryCSG` exposes a public helper for reading triangle vertex and UV data from a face:
+
+```csharp
+public struct TriangleData
+{
+    public Float3[] Vertices; // Always length 3
+    public Float2[] UVs;      // Always length 3
+    public GeometryData.Face Face;
+}
+
+public static TriangleData GetTriangleData(GeometryData.Face face)
+```
+
+`GetTriangleData` throws `InvalidOperationException` if the face is not a triangle. UVs are read from the loop attribute named `"uv"` if it exists; otherwise `Float2.Zero` is used.
+
+---
+
+## Performance Notes
+
+The CSG algorithm is **O(n²)** in the number of triangles: every triangle in mesh A is tested against every triangle in mesh B to find intersections. This is accelerated by an AABB-based BVH (Bounding Volume Hierarchy) that skips pairs whose bounding boxes do not overlap, but the worst case for two highly overlapping meshes remains quadratic.
+
+**Practical guidance:**
+
+- CSG is well-suited to **edit-time** operations such as level design, tool brushes, or asset baking.
+- Avoid calling CSG methods **per-frame** in a real-time render loop, especially with high-resolution meshes.
+- Keep input meshes as low-poly as possible for interactive CSG. Subdivide the *result* afterward if detail is needed.
+- For animated CSG (as in the demo), pre-cache the base meshes and only re-run the operation when the overlap changes significantly.
+
+```csharp
+// Good: cache base meshes, only recompute CSG when needed
+var baseA = GeometryGenerator.Icosphere(0.6f, subdivisions: 0); // 20 triangles
+var baseB = GeometryGenerator.Box(new Float3(0.6f));
+GeometryOperators.Triangulate(baseB);
+
+// Re-run CSG on a copy each frame (only if baseB has moved)
+var copyA = CopyGeometry(baseA);
+var copyB = CopyGeometry(baseB);
+GeometryOperators.Translate(copyB, animatedOffset);
+
+var result = GeometryCSG.Union(copyA, copyB);
+```

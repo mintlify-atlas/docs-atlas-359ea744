@@ -1,0 +1,194 @@
+---
+title: "Float2 — 2D Single-Precision Vector"
+sidebarTitle: "Float2"
+description: "API reference for Float2: constructors, fields, static constants, arithmetic operators, System.Numerics interop, and static methods including Dot, Normalize, Slerp, Reflect, and Refract."
+---
+
+`Float2` is a 2-component vector backed by `float` (32-bit single-precision) values. It is defined in the `Prowl.Vector` namespace and marked `[Serializable]`. It interoperates directly with `System.Numerics.Vector2` via implicit casts, making it a drop-in replacement in APIs that expect the BCL vector type.
+
+## Declaration
+
+```csharp
+[Serializable]
+public partial struct Float2 : IEquatable<Float2>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `X` | `float` | The X (horizontal) component. |
+| `Y` | `float` | The Y (vertical) component. |
+
+---
+
+## Static Constants
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `Zero` | `(0, 0)` | The zero vector. |
+| `One` | `(1, 1)` | A vector with all components set to one. |
+| `UnitX` | `(1, 0)` | The unit vector along the X-axis. |
+| `UnitY` | `(0, 1)` | The unit vector along the Y-axis. |
+
+---
+
+## Constructors
+
+| Signature | Description |
+|-----------|-------------|
+| `Float2(float scalar)` | Sets both `X` and `Y` to `scalar`. |
+| `Float2(float x, float y)` | Sets `X` and `Y` individually. |
+| `Float2(Float2 v)` | Copy constructor. |
+| `Float2(float[] array)` | Reads components from a `float[]` of at least length 2. |
+| `Float2(IEnumerable<float> values)` | Reads components from an enumerable of at least 2 elements. |
+| `Float2(ReadOnlySpan<float> span)` | Reads components from a read-only span of at least length 2. |
+| `Float2(Span<float> span)` | Reads components from a span of at least length 2. |
+| `Float2(Double2 v)` | Narrows a `Double2` to single precision (explicit cast). |
+| `Float2(Int2 v)` | Converts an `Int2` to `float` components (explicit cast). |
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `this[int index]` | `float` | Gets or sets a component by index. `0` → `X`, `1` → `Y`. Throws `IndexOutOfRangeException` for any other value. |
+
+---
+
+## Operators
+
+### Arithmetic — vector × vector (component-wise)
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Float2 + Float2` | Component-wise addition. |
+| `-` | `Float2 - Float2` | Component-wise subtraction. |
+| `*` | `Float2 * Float2` | Component-wise multiplication. |
+| `/` | `Float2 / Float2` | Component-wise division. |
+| `%` | `Float2 % Float2` | Component-wise remainder. |
+
+### Arithmetic — vector × scalar
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Float2 + float` / `float + Float2` | Adds scalar to each component. |
+| `-` | `Float2 - float` / `float - Float2` | Subtracts scalar from each component (or vice-versa). |
+| `*` | `Float2 * float` / `float * Float2` | Scales each component. |
+| `/` | `Float2 / float` / `float / Float2` | Divides each component by scalar (or divides scalar by each component). |
+| `%` | `Float2 % float` / `float % Float2` | Remainder with scalar. |
+
+### Unary & comparison
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| Unary `-` | `-Float2` | Negates both components. |
+| `==` | `Float2 == Float2` | Component-wise equality. |
+| `!=` | `Float2 != Float2` | Component-wise inequality. |
+
+### Casts
+
+| Conversion | Kind | Description |
+|------------|------|-------------|
+| `Float2` → `System.Numerics.Vector2` | `implicit` | Interop with the BCL `Vector2` type. |
+| `System.Numerics.Vector2` → `Float2` | `implicit` | Interop with the BCL `Vector2` type. |
+| `Double2` → `Float2` | `explicit` | Narrows double-precision to single-precision. |
+| `Int2` → `Float2` | `explicit` | Converts integer components to `float`. |
+
+---
+
+## Static Methods
+
+### Geometric
+
+| Signature | Description |
+|-----------|-------------|
+| `static float Dot(Float2 x, Float2 y)` | Returns the dot product `x.X*y.X + x.Y*y.Y`. |
+| `static float Length(Float2 v)` | Returns the Euclidean length (magnitude) of `v`. |
+| `static float LengthSquared(Float2 v)` | Returns the squared length; cheaper than `Length` when only comparison is needed. |
+| `static Float2 Normalize(Float2 v)` | Returns a unit-length copy of `v`, or `Zero` if the vector is near-zero. |
+| `static float Distance(Float2 x, Float2 y)` | Returns the Euclidean distance between `x` and `y`. |
+| `static float DistanceSquared(Float2 x, Float2 y)` | Returns the squared distance between `x` and `y`. |
+| `static float AngleBetween(Float2 a, Float2 b)` | Returns the angle in **radians** between two vectors. |
+| `static float SignedAngleBetween(Float2 a, Float2 b)` | Returns the signed angle in **radians** between two 2D vectors (positive = counter-clockwise). |
+| `static bool IsParallel(Float2 a, Float2 b, float tolerance = 1e-6f)` | Returns `true` if the two vectors point in the same or opposite directions within the given tolerance. |
+| `static bool IsPerpendicular(Float2 a, Float2 b, float tolerance = 1e-6f)` | Returns `true` if the dot product is within `tolerance` of zero. |
+
+### Interpolation
+
+| Signature | Description |
+|-----------|-------------|
+| `static Float2 Slerp(Float2 a, Float2 b, float t)` | Spherically interpolates between `a` and `b`; `t` is clamped to `[0, 1]`. |
+| `static Float2 SlerpUnclamped(Float2 a, Float2 b, float t)` | Spherical interpolation without clamping `t`. |
+| `static Float2 MoveTowards(Float2 current, Float2 target, float maxDistanceDelta)` | Moves `current` toward `target` by at most `maxDistanceDelta`. |
+
+### Projection & Reflection
+
+| Signature | Description |
+|-----------|-------------|
+| `static Float2 Project(Float2 a, Float2 b)` | Projects vector `a` onto vector `b`. |
+| `static Float2 ProjectOntoPlane(Float2 vector, Float2 planeNormal)` | Removes the component of `vector` along `planeNormal`. |
+| `static Float2 Reflect(Float2 vector, Float2 normal)` | Reflects `vector` off the surface defined by `normal`. |
+| `static Float2 Refract(Float2 incident, Float2 normal, float eta)` | Computes the refraction direction given an index-of-refraction ratio `eta`. Returns `(0, 0)` on total internal reflection. |
+
+---
+
+## Swizzles
+
+`Float2` exposes all GLSL-style 2-component swizzle properties (auto-generated). Read-write swizzles reassign the underlying components; read-only swizzles (where the same component appears more than once) are computed getters.
+
+**Examples:**
+
+```csharp
+Float2 v = new Float2(1f, 2f);
+
+Float2 swapped = v.YX;   // (2f, 1f)
+Float2 same    = v.XY;   // (1f, 2f)  — settable
+Float2 xRepeat = v.XX;   // (1f, 1f)  — get-only
+Float2 yRepeat = v.YY;   // (2f, 2f)  — get-only
+```
+
+---
+
+## Instance Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `float[] ToArray()` | Returns `[X, Y]` as a new array. |
+| `string ToString()` | Formats as `(X, Y)` using the current culture. |
+| `string ToString(string format)` | Formats each component with the given numeric format string. |
+| `string ToString(string format, IFormatProvider formatProvider)` | Fully customizable format output. |
+| `bool Equals(Float2 other)` | Component-wise equality. |
+| `int GetHashCode()` | Combined hash of both components. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+using System.Numerics;
+
+// Construct from a BCL Vector2
+System.Numerics.Vector2 bcl = new Vector2(3f, 4f);
+Float2 v = bcl;  // implicit — no cast needed
+
+// Basic operations
+Float2 norm = Float2.Normalize(v);           // (0.6f, 0.8f)
+float  len  = Float2.Length(v);              // 5f
+float  dot  = Float2.Dot(norm, Float2.UnitX);// 0.6f
+
+// Interpolation
+Float2 a   = Float2.UnitX;
+Float2 b   = Float2.UnitY;
+Float2 mid = Float2.Slerp(a, b, 0.5f);      // ≈ (0.707f, 0.707f)
+
+// Pass to any API expecting Vector2
+System.Numerics.Vector2 bclMid = mid;        // implicit
+
+Console.WriteLine($"Normalised : {norm}");
+Console.WriteLine($"Slerp mid  : {mid}");
+```

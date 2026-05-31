@@ -1,0 +1,215 @@
+---
+title: "Float3 — 3D Single-Precision Vector"
+sidebarTitle: "Float3"
+description: "API reference for Float3: constructors, fields, static constants, arithmetic operators, System.Numerics interop, and static methods including Dot, Cross, Normalize, Slerp, OrthoNormalize, Reflect, and Refract."
+---
+
+`Float3` is a 3-component vector backed by `float` (32-bit single-precision) values. It is defined in the `Prowl.Vector` namespace and marked `[Serializable]`. It interoperates directly with `System.Numerics.Vector3` via implicit casts, making it a drop-in replacement in APIs that expect the BCL vector type.
+
+## Declaration
+
+```csharp
+[Serializable]
+public partial struct Float3 : IEquatable<Float3>, IFormattable
+```
+
+---
+
+## Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `X` | `float` | The X component. |
+| `Y` | `float` | The Y component. |
+| `Z` | `float` | The Z component. |
+
+---
+
+## Static Constants
+
+| Property | Value | Description |
+|----------|-------|-------------|
+| `Zero` | `(0, 0, 0)` | The zero vector. |
+| `One` | `(1, 1, 1)` | A vector with all components set to one. |
+| `UnitX` | `(1, 0, 0)` | The unit vector along the X-axis. |
+| `UnitY` | `(0, 1, 0)` | The unit vector along the Y-axis. |
+| `UnitZ` | `(0, 0, 1)` | The unit vector along the Z-axis. |
+
+---
+
+## Constructors
+
+| Signature | Description |
+|-----------|-------------|
+| `Float3(float scalar)` | Sets all three components to `scalar`. |
+| `Float3(float x, float y, float z)` | Sets `X`, `Y`, and `Z` individually. |
+| `Float3(Float3 v)` | Copy constructor. |
+| `Float3(float[] array)` | Reads components from a `float[]` of at least length 3. |
+| `Float3(IEnumerable<float> values)` | Reads components from an enumerable of at least 3 elements. |
+| `Float3(ReadOnlySpan<float> span)` | Reads components from a read-only span of at least length 3. |
+| `Float3(Span<float> span)` | Reads components from a span of at least length 3. |
+| `Float3(Float2 xy, float z)` | Constructs from a `Float2` for XY and a separate `z`. |
+| `Float3(float x, Float2 yz)` | Constructs from a separate `x` and a `Float2` for YZ. |
+| `Float3(Double3 v)` | Narrows a `Double3` to single precision (explicit cast). |
+| `Float3(Int3 v)` | Converts an `Int3` to `float` components (explicit cast). |
+
+---
+
+## Properties
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `this[int index]` | `float` | Gets or sets a component by index. `0` → `X`, `1` → `Y`, `2` → `Z`. Throws `IndexOutOfRangeException` for any other value. |
+
+---
+
+## Operators
+
+### Arithmetic — vector × vector (component-wise)
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Float3 + Float3` | Component-wise addition. |
+| `-` | `Float3 - Float3` | Component-wise subtraction. |
+| `*` | `Float3 * Float3` | Component-wise multiplication. |
+| `/` | `Float3 / Float3` | Component-wise division. |
+| `%` | `Float3 % Float3` | Component-wise remainder. |
+
+### Arithmetic — vector × scalar
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| `+` | `Float3 + float` / `float + Float3` | Adds scalar to each component. |
+| `-` | `Float3 - float` / `float - Float3` | Subtracts scalar from each component (or vice-versa). |
+| `*` | `Float3 * float` / `float * Float3` | Scales each component. |
+| `/` | `Float3 / float` / `float / Float3` | Divides each component by scalar (or divides scalar by each component). |
+| `%` | `Float3 % float` / `float % Float3` | Remainder with scalar. |
+
+### Unary & comparison
+
+| Operator | Signature | Description |
+|----------|-----------|-------------|
+| Unary `-` | `-Float3` | Negates all three components. |
+| `==` | `Float3 == Float3` | Component-wise equality. |
+| `!=` | `Float3 != Float3` | Component-wise inequality. |
+
+### Casts
+
+| Conversion | Kind | Description |
+|------------|------|-------------|
+| `Float3` → `System.Numerics.Vector3` | `implicit` | Interop with the BCL `Vector3` type. |
+| `System.Numerics.Vector3` → `Float3` | `implicit` | Interop with the BCL `Vector3` type. |
+| `Double3` → `Float3` | `explicit` | Narrows double-precision to single-precision. |
+| `Int3` → `Float3` | `explicit` | Converts integer components to `float`. |
+| `Float2` → `Float3` | `explicit` | Extends to 3D with `Z = 0`. |
+| `Float3` → `Float2` | `explicit` | Drops the `Z` component. |
+
+---
+
+## Static Methods
+
+### Geometric
+
+| Signature | Description |
+|-----------|-------------|
+| `static float Dot(Float3 x, Float3 y)` | Returns the dot product `x.X*y.X + x.Y*y.Y + x.Z*y.Z`. |
+| `static Float3 Cross(Float3 x, Float3 y)` | Returns the cross product (a vector perpendicular to both inputs). |
+| `static float Length(Float3 v)` | Returns the Euclidean length (magnitude) of `v`. |
+| `static float LengthSquared(Float3 v)` | Returns the squared length; cheaper than `Length` when only comparison is needed. |
+| `static Float3 Normalize(Float3 v)` | Returns a unit-length copy of `v`, or `Zero` if the vector is near-zero. |
+| `static float Distance(Float3 x, Float3 y)` | Returns the Euclidean distance between `x` and `y`. |
+| `static float DistanceSquared(Float3 x, Float3 y)` | Returns the squared distance between `x` and `y`. |
+| `static float AngleBetween(Float3 a, Float3 b)` | Returns the angle in **radians** between two vectors. |
+| `static float SignedAngleBetween(Float3 a, Float3 b, Float3 axis)` | Returns the signed angle in **radians** around `axis`, following the right-hand rule. |
+| `static bool IsParallel(Float3 a, Float3 b, float tolerance = 1e-6f)` | Returns `true` if the two vectors point in the same or opposite directions within the given tolerance. |
+| `static bool IsPerpendicular(Float3 a, Float3 b, float tolerance = 1e-6f)` | Returns `true` if the dot product is within `tolerance` of zero. |
+
+### Orthonormalization
+
+| Signature | Description |
+|-----------|-------------|
+| `static void OrthoNormalize(ref Float3 normal, ref Float3 tangent)` | Orthonormalizes `normal` and `tangent` using the Gram–Schmidt process. |
+| `static void OrthoNormalize(ref Float3 normal, ref Float3 tangent, ref Float3 binormal)` | Orthonormalizes a full TBN (tangent, bitangent, normal) frame. |
+
+### Interpolation
+
+| Signature | Description |
+|-----------|-------------|
+| `static Float3 Slerp(Float3 a, Float3 b, float t)` | Spherically interpolates between `a` and `b`; `t` is clamped to `[0, 1]`. |
+| `static Float3 SlerpUnclamped(Float3 a, Float3 b, float t)` | Spherical interpolation without clamping `t`. |
+| `static Float3 MoveTowards(Float3 current, Float3 target, float maxDistanceDelta)` | Moves `current` toward `target` by at most `maxDistanceDelta`. |
+
+### Projection & Reflection
+
+| Signature | Description |
+|-----------|-------------|
+| `static Float3 Project(Float3 a, Float3 b)` | Projects vector `a` onto vector `b`. |
+| `static Float3 ProjectOntoPlane(Float3 vector, Float3 planeNormal)` | Removes the component of `vector` along `planeNormal`. |
+| `static Float3 Reflect(Float3 vector, Float3 normal)` | Reflects `vector` off the surface defined by `normal`. |
+| `static Float3 Refract(Float3 incident, Float3 normal, float eta)` | Computes the refraction direction given an index-of-refraction ratio `eta`. Returns `(0, 0, 0)` on total internal reflection. |
+
+---
+
+## Swizzles
+
+`Float3` exposes the full set of GLSL-style swizzle properties for all 2- and 3-component permutations (auto-generated). Read-write swizzles reassign the underlying components; read-only swizzles (where any component repeats) are computed getters.
+
+**Examples:**
+
+```csharp
+Float3 v = new Float3(1f, 2f, 3f);
+
+Float2 xy  = v.XY;   // (1f, 2f)  — get/set
+Float2 zx  = v.ZX;   // (3f, 1f)  — get/set
+Float3 zyx = v.ZYX;  // (3f, 2f, 1f) — get/set
+Float3 xxx = v.XXX;  // (1f, 1f, 1f) — get-only
+
+// Write-back: assigns to the source vector's Y and Z
+v.YZ = new Float2(10f, 20f);  // v is now (1f, 10f, 20f)
+```
+
+---
+
+## Instance Methods
+
+| Signature | Description |
+|-----------|-------------|
+| `float[] ToArray()` | Returns `[X, Y, Z]` as a new array. |
+| `string ToString()` | Formats as `(X, Y, Z)` using the current culture. |
+| `string ToString(string format)` | Formats each component with the given numeric format string. |
+| `string ToString(string format, IFormatProvider formatProvider)` | Fully customizable format output. |
+| `bool Equals(Float3 other)` | Component-wise equality. |
+| `int GetHashCode()` | Combined hash of all three components. |
+
+---
+
+## Code Example
+
+```csharp
+using Prowl.Vector;
+using System.Numerics;
+
+// Construct a tangent-space basis
+Float3 normal  = Float3.Normalize(new Float3(0f, 1f, 0.1f));
+Float3 tangent = new Float3(1f, 0f, 0f);
+Float3.OrthoNormalize(ref normal, ref tangent);
+Float3 binormal = Float3.Cross(normal, tangent);
+
+Console.WriteLine($"N: {normal}  T: {tangent}  B: {binormal}");
+
+// Spherically interpolate between two directions
+Float3 start = Float3.UnitX;
+Float3 end   = Float3.UnitZ;
+Float3 mid   = Float3.Slerp(start, end, 0.5f);  // ≈ (0.707f, 0f, 0.707f)
+
+// Reflect an incoming ray
+Float3 ray      = new Float3(1f, -1f, 0f);
+Float3 surface  = Float3.UnitY;
+Float3 reflected = Float3.Reflect(ray, surface);  // (1f, 1f, 0f)
+
+// Implicit interop with BCL
+System.Numerics.Vector3 bclVec = mid;
+
+Console.WriteLine($"Slerp mid : {mid}");
+Console.WriteLine($"Reflected : {reflected}");
+```
