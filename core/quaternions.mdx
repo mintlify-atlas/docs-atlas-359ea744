@@ -1,7 +1,7 @@
 ---
-title: "Quaternion Rotations in Prowl.Vector"
+title: "Quaternion: 3D Rotation Math in the Prowl.Vector C# Library"
 sidebarTitle: "Quaternions"
-description: "Create and interpolate 3D rotations with Quaternion — Euler angles, axis-angle, Slerp, Nlerp, LookRotation, and matrix conversion."
+description: "Create and interpolate 3D rotations with Quaternion — Euler angles, axis-angle, AxisAngle, Slerp, Nlerp, LookRotation, and matrix conversion."
 ---
 
 `Quaternion` is Prowl.Vector's single rotation type, using **float precision** (`float X, Y, Z, W`). It represents an orientation in 3D space without the gimbal-lock issues of Euler angles and without the overhead of a full 4×4 matrix. Components are ordered **X, Y, Z, W**, where W is the scalar part and X/Y/Z form the vector part. Unit quaternions (magnitude ≈ 1) are valid rotations; the identity quaternion `(0, 0, 0, 1)` represents no rotation.

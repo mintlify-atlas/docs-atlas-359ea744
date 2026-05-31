@@ -4,13 +4,13 @@ sidebarTitle: "Maths"
 description: "Complete API reference for the Maths static class — all constants (PI, E, Sqrt2), scalar functions (Lerp, Clamp, Remap, Floor), and angle utilities."
 ---
 
+`Maths` is a static, partial class in the `Prowl.Vector` namespace that centralizes all mathematical constants and scalar/vector utility functions. Every method has overloads for `float`, `double`, and the vector types `Float2/3/4` and `Double2/3/4` (and integer vectors where applicable). All methods are marked `[MethodImpl(AggressiveInlining)]`.
+
 ## Declaration
 
 ```csharp
 public static partial class Maths
 ```
-
-`Maths` is a static, partial class that centralizes all mathematical constants and scalar/vector utility functions used throughout Prowl.Vector. Every method has overloads for `float`, `double`, and the vector types `Float2/3/4` and `Double2/3/4` (and integer vectors where applicable). All methods are marked `[MethodImpl(AggressiveInlining)]`.
 
 ---
 
@@ -88,7 +88,7 @@ public static partial class Maths
 | `E_Neg_Half` | `0.60653065f` | e^(−0.5). |
 | `SpeedOfLight` | `299792458f` | Speed of light in vacuum (m/s). |
 | `StandardGravity` | `9.80665f` | Standard gravitational acceleration (m/s²). |
-| `StandardTemperature` | `273.15f` | Standard temperature in Kelvin. |
+| `StandardTemperature` | `273.15f` | Standard temperature in Kelvin (0 °C). |
 | `AbsoluteZero` | `-273.15f` | Absolute zero in °C. |
 
 ### Common Fractions

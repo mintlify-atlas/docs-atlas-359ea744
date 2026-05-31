@@ -410,7 +410,7 @@ using Prowl.Vector;
 
 // 1. Build a TRS matrix for a game object
 var position  = new Double3(10.0, 5.0, -3.0);
-var rotation  = Quaternion.CreateFromYawPitchRoll(0.5, 0.2, 0.0);
+var rotation  = Quaternion.FromEuler(30f, 45f, 0f);
 var scale     = new Double3(2.0, 2.0, 2.0);
 
 Double4x4 model = Double4x4.CreateTRS(position, rotation, scale);

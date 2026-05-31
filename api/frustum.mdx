@@ -4,13 +4,13 @@ sidebarTitle: "Frustum"
 description: "API reference for Frustum: construction from six planes or a projection matrix, containment tests for points, spheres, and AABBs, and IBoundingShape support."
 ---
 
+`Frustum` represents a 3D viewing frustum defined by **six half-spaces** (planes) in the `Prowl.Vector` namespace. The planes are stored in the fixed order: **Near, Far, Left, Right, Top, Bottom**. The struct implements `IBoundingShape` so it can participate in GJK-based queries and is typically constructed from a combined view-projection matrix using `FromMatrix`.
+
 ## Declaration
 
 ```csharp
 public struct Frustum : IEquatable<Frustum>, IFormattable, IBoundingShape
 ```
-
-`Frustum` represents a 3D viewing frustum defined by **six half-spaces** (planes). The planes are stored in the fixed order: **Near, Far, Left, Right, Top, Bottom**. The struct implements `IBoundingShape` so it can participate in GJK-based queries.
 
 ---
 

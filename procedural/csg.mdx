@@ -1,5 +1,5 @@
 ---
-title: "Constructive Solid Geometry with GeometryCSG"
+title: "GeometryCSG: Boolean Mesh Operations for GeometryData"
 sidebarTitle: "CSG Operations"
 description: "Perform boolean mesh operations — Union, Intersection, and Subtraction — on triangulated GeometryData meshes using the GeometryCSG class."
 ---
@@ -190,10 +190,12 @@ var baseA = GeometryGenerator.Icosphere(0.6f, subdivisions: 0); // 20 triangles
 var baseB = GeometryGenerator.Box(new Float3(0.6f));
 GeometryOperators.Triangulate(baseB);
 
-// Re-run CSG on a copy each frame (only if baseB has moved)
-var copyA = CopyGeometry(baseA);
-var copyB = CopyGeometry(baseB);
-GeometryOperators.Translate(copyB, animatedOffset);
+// Re-run CSG with an offset copy each time the transform changes.
+// Use Merge into a fresh GeometryData to get an independent copy,
+// then translate only that copy before the CSG call.
+var workingB = new GeometryData();
+GeometryOperators.Merge(workingB, baseB);
+GeometryOperators.Translate(workingB, animatedOffset);
 
-var result = GeometryCSG.Union(copyA, copyB);
+var result = GeometryCSG.Union(baseA, workingB);
 ```

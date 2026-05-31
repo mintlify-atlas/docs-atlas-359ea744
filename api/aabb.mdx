@@ -4,13 +4,13 @@ sidebarTitle: "AABB"
 description: "API reference for AABB: constructors from min/max or center/size, spatial queries (Contains, Intersects, Expand, Encapsulate), and IBoundingShape GJK support."
 ---
 
+`AABB` (Axis-Aligned Bounding Box) represents a rectangular volume in 3D space whose edges are always parallel to the world axes. It is defined by its minimum and maximum corner points (`Float3 Min` and `Float3 Max`) and implements `IBoundingShape` for GJK-based collision detection. The struct lives in the `Prowl.Vector` namespace.
+
 ## Declaration
 
 ```csharp
 public struct AABB : IEquatable<AABB>, IFormattable, IBoundingShape
 ```
-
-`AABB` (Axis-Aligned Bounding Box) represents a rectangular volume in 3D space whose edges are always parallel to the world axes. It is defined by its minimum and maximum corner points and implements `IBoundingShape` for GJK-based collision detection.
 
 ---
 
@@ -289,7 +289,7 @@ Float3 support = box.SupportMap(new Float3(1f, 0f, 0f));
 // Returns (Max.X, depends-on-dir Y, depends-on-dir Z)
 
 // Transform with a rotation matrix
-Float4x4 rotation = Float4x4.RotationY(Maths.PI / 4f);
+Float4x4 rotation = Float4x4.RotateY(Maths.PI / 4f);
 AABB rotatedAABB = box.TransformBy(rotation);
 ```
 

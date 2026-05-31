@@ -417,7 +417,7 @@ using Prowl.Vector;
 
 // 1. Build a TRS matrix for a scene object
 var position = new Float3(5.0f, 0.0f, 10.0f);
-var rotation = Quaternion.CreateFromYawPitchRoll(0.5f, 0.0f, 0.0f);
+var rotation = Quaternion.FromEuler(0f, 28.6f, 0f);
 var scale    = new Float3(1.0f, 2.0f, 1.0f);
 
 Float4x4 model = Float4x4.CreateTRS(position, rotation, scale);
@@ -430,7 +430,7 @@ Float4x4 view = Float4x4.CreateLookAt(
 
 // 3. Perspective projection (60° FOV, 16:9)
 Float4x4 proj = Float4x4.CreatePerspectiveFov(
-    verticalFovRadians: MathF.PI / 3.0f,
+    verticalFovRadians: Maths.PI / 3.0f,
     aspectRatio:        16.0f / 9.0f,
     nearPlane:          0.1f,
     farPlane:           1000.0f);

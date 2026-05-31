@@ -1,7 +1,7 @@
 ---
-title: "GeometryData: Non-Manifold Mesh Representation"
+title: "GeometryData: BMesh-Style Non-Manifold Mesh Structure"
 sidebarTitle: "GeometryData"
-description: "GeometryData is a BMesh-inspired non-manifold boundary representation supporting vertices, edges, loops, faces, and arbitrary per-element attributes."
+description: "GeometryData is a BMesh-inspired non-manifold boundary representation supporting vertices, edges, loops, faces, and arbitrary typed per-element attributes."
 ---
 
 `GeometryData` (in `Prowl.Vector.Geometry`) is a flexible mesh representation inspired by Blender's BMesh. It stores four topological element types — vertices, edges, loops (face corners), and faces — with arbitrary custom attributes attachable to any of them. This design makes procedural mesh construction, editing, and export straightforward while remaining efficient enough for real-time tooling.

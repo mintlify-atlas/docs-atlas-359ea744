@@ -318,7 +318,7 @@ Formats all 9 components grouped by row, e.g. `Double3x3(1, 0, 0,  0, 1, 0,  0, 
 using Prowl.Vector;
 
 // 1. Rotation from a unit quaternion
-var quat = Quaternion.CreateFromYawPitchRoll(0.3, 0.1, 0.0);
+var quat = Quaternion.FromEuler(17.2f, 5.7f, 0.0f);
 Double3x3 rot = Double3x3.FromQuaternion(quat);
 
 // 2. Rotation around an arbitrary axis

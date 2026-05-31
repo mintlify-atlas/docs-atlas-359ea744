@@ -29,7 +29,7 @@ This quickstart walks you from a blank .NET project to running, verified example
 
     ```csharp
     using Prowl.Vector;          // Core types: Double3, Float3, Quaternion, Maths, Noise, RNG …
-    using Prowl.Vector.Geometry; // Geometry types: AABB, Sphere, Ray, GJK, Intersection …
+    using Prowl.Vector.Geometry; // Geometry tools: GJK, Intersection, GeometryData …
     ```
   </Step>
 
@@ -73,7 +73,7 @@ This quickstart walks you from a blank .NET project to running, verified example
     // Combined TRS — position (1,2,3), 45 ° yaw, uniform scale 1
     var transform = Double4x4.CreateTRS(
         new Double3(1, 2, 3),
-        Quaternion.FromEuler(0, 45, 0),
+        Quaternion.FromEuler(new Float3(0, 45, 0)),
         new Double3(1, 1, 1)
     );
 
@@ -124,23 +124,24 @@ This quickstart walks you from a blank .NET project to running, verified example
 
     ```csharp
     // GJK collision detection between any two IBoundingShape types
-    var box    = new AABB(new Double3(-1, -1, -1), new Double3(1, 1, 1));
-    var sphere = new Sphere(Double3.Zero, 1.5);
+    // AABB and Sphere use Float3 components
+    var box    = new AABB(new Float3(-1, -1, -1), new Float3(1, 1, 1));
+    var sphere = new Sphere(Float3.Zero, 1.5f);
 
     bool colliding = GJK.Intersects(box, sphere); // true — the sphere overlaps the box
 
-    // Direct ray-AABB test
-    var ray = new Ray(new Double3(0, 5, 0), -Double3.UnitY);
+    // Direct ray-AABB test (Intersection uses Float3)
+    var ray = new Ray(new Float3(0, 5, 0), -Float3.UnitY);
     bool hit = Intersection.RayAABB(
         ray.Origin, ray.Direction,
         box.Min, box.Max,
-        out double t
+        out float tMin, out float tMax
     );
 
     // Sphere-sphere overlap
     bool spheresOverlap = Intersection.SphereSphereOverlap(
-        Double3.Zero, 1.0,
-        new Double3(1.5, 0, 0), 1.0
+        Float3.Zero, 1.0f,
+        new Float3(1.5f, 0, 0), 1.0f
     );
     ```
   </Step>

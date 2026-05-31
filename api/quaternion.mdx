@@ -4,14 +4,14 @@ sidebarTitle: "Quaternion"
 description: "API reference for Quaternion: constructors, XYZW fields, EulerAngles, static factory methods, Slerp/Nlerp, LookRotation, and matrix conversions."
 ---
 
+`Quaternion` represents a 3D rotation as a unit quaternion with components **X, Y, Z** (vector part) and **W** (scalar part). It is the primary rotation primitive in Prowl.Vector — more numerically stable than Euler angles and free of gimbal lock. The struct lives in the `Prowl.Vector` namespace and is marked `[Serializable]`.
+
 ## Declaration
 
 ```csharp
 [System.Serializable]
 public struct Quaternion : IEquatable<Quaternion>, IFormattable
 ```
-
-`Quaternion` represents a 3D rotation as a unit quaternion with components **X, Y, Z** (vector part) and **W** (scalar part). It is the primary rotation primitive in Prowl.Vector — more numerically stable than Euler angles and free of gimbal lock.
 
 ---
 

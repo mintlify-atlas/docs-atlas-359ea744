@@ -318,16 +318,16 @@ Formats all 9 components grouped by row, e.g. `Float3x3(1, 0, 0,  0, 1, 0,  0, 0
 using Prowl.Vector;
 
 // 1. Rotation from a unit quaternion
-var quat = Quaternion.CreateFromYawPitchRoll(0.3f, 0.1f, 0.0f);
+var quat = Quaternion.FromEuler(17.2f, 5.7f, 0.0f);
 Float3x3 rot = Float3x3.FromQuaternion(quat);
 
 // 2. Rotation from axis-angle (45° around (1,1,0))
 Float3 axis = Float3.Normalize(new Float3(1f, 1f, 0f));
-Float3x3 axisRot = Float3x3.FromAxisAngle(axis, MathF.PI / 4f);
+Float3x3 axisRot = Float3x3.FromAxisAngle(axis, Maths.PI / 4f);
 
 // 3. Elementary rotations and composition
-Float3x3 rx = Float3x3.RotateX(MathF.PI / 6f);   // 30°
-Float3x3 ry = Float3x3.RotateY(MathF.PI / 4f);   // 45°
+Float3x3 rx = Float3x3.RotateX(Maths.PI / 6f);   // 30°
+Float3x3 ry = Float3x3.RotateY(Maths.PI / 4f);   // 45°
 Float3x3 combined = rx * ry;                       // ry applied first
 
 // 4. Non-uniform scale

@@ -16,15 +16,15 @@ Prowl.Vector is a comprehensive 32-bit and 64-bit mathematics library built for 
     A single `Quaternion` struct covers Euler-angle conversions (`FromEuler` / `EulerAngles`), axis-angle construction (`AxisAngle` / `AngleAxis`), spherical interpolation (`Slerp`), normalized lerp (`Nlerp`), look-rotation, and full operator overloads for composing and applying rotations.
   </Card>
   <Card title="Geometry & Collision" icon="cube" href="/quickstart">
-    The `Prowl.Vector.Geometry` namespace ships `AABB`, `Sphere`, `Plane`, `Ray`, `Cone`, `Triangle`, `Frustum`, `LineSegment`, and `Spline` primitives, backed by a rich `Intersection` static class and a GJK collision-detection implementation (`GJK.Intersects`).
+    The `Prowl.Vector` namespace ships `AABB`, `Sphere`, `Plane`, `Ray`, `Cone`, `Triangle`, `Frustum`, `LineSegment`, and `Spline` primitives, backed by a rich `Intersection` static class and a GJK collision-detection implementation (`GJK.Intersects`).
   </Card>
-  <Card title="Procedural Mesh" icon="bezier-curve" href="/introduction">
+  <Card title="Procedural Mesh" icon="bezier-curve" href="/procedural/geometry-data">
     `GeometryData` carries mesh data — vertices, normals, UVs, and indices — for wireframe and solid visualization workflows, making it easy to generate and inspect procedural geometry at runtime.
   </Card>
-  <Card title="Noise Functions" icon="wave-sine" href="/introduction">
+  <Card title="Noise Functions" icon="wave-square" href="/utilities/noise">
     The `Noise` static class provides Simplex noise (`SNoise`), Classic Perlin noise (`CNoise`), periodic Perlin noise (`PNoise`), and Cellular / Worley noise (`Cellular2D`, `Cellular3D`) in 2-D, 3-D, and 4-D variants — everything you need for procedural terrain, textures, and animation.
   </Card>
-  <Card title="Random Number Generation" icon="dice" href="/introduction">
+  <Card title="Random Number Generation" icon="dice" href="/utilities/rng">
     `RNG` is a fast xoshiro256\*\* pseudo-random number generator. Use `RNG.Shared` for a convenient shared instance or seed your own. It produces doubles, floats, integer ranges, points on a circle or sphere, random colors, and Gaussian-distributed values.
   </Card>
 </CardGroup>
@@ -35,10 +35,10 @@ Prowl.Vector is organized around two primary namespaces:
 
 | Namespace | Contents |
 |---|---|
-| `Prowl.Vector` | Core math types: `Double2/3/4`, `Float2/3/4`, `Int2/3/4`, `Double4x4`, `Float4x4`, `Double3x3`, `Float3x3`, `Double2x2`, `Float2x2`, `Quaternion`, `Color`, `Color32`, `Rect`, `IntRect`, `RNG`, and the `Maths` / `Noise` static helper classes. |
-| `Prowl.Vector.Geometry` | Geometry and spatial primitives: `AABB`, `Frustum`, `Plane`, `Ray`, `Sphere`, `Cone`, `Triangle`, `LineSegment`, `Spline`, `Transform2D`, `Transform3D`, `GeometryData`, the `Intersection` static class, the `IBoundingShape` interface, and the `GJK` collision detector. |
+| `Prowl.Vector` | Core math types: `Double2/3/4`, `Float2/3/4`, `Int2/3/4`, `Double4x4`, `Float4x4`, `Double3x3`, `Float3x3`, `Double2x2`, `Float2x2`, `Quaternion`, `Color`, `Color32`, `Rect`, `IntRect`, `RNG`, and the `Maths` / `Noise` static helper classes. Also includes geometry primitives: `AABB`, `Sphere`, `Plane`, `Ray`, `Cone`, `Triangle`, `Frustum`, `LineSegment`, `Spline`, and the `IBoundingShape` interface. |
+| `Prowl.Vector.Geometry` | Procedural mesh and collision tools: `GeometryData`, the `Intersection` static class, and the `GJK` collision detector. |
 
-Add `using Prowl.Vector;` for all core math work. Add `using Prowl.Vector.Geometry;` when you need geometric primitives, intersection tests, or GJK collision detection.
+Add `using Prowl.Vector;` for all core math work and geometry primitives. Add `using Prowl.Vector.Geometry;` when you need procedural mesh data, intersection tests, or GJK collision detection.
 
 ## Design Philosophy
 

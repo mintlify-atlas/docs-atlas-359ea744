@@ -1,16 +1,16 @@
 ---
 title: "Noise Static Class — Simplex, Perlin, and Cellular Noise"
 sidebarTitle: "Noise"
-description: "Complete API reference for the Noise static partial class — SNoise, CNoise, PNoise, Cellular2D/3D, and periodic simplex variants."
+description: "Complete API reference for the Noise static partial class — SNoise, CNoise, PNoise, Cellular2D, and periodic simplex variants from PsrdNoise."
 ---
+
+`Noise` is a static partial class in the `Prowl.Vector` namespace that exposes high-quality, GPU-algorithm-style noise functions ported from Stefan Gustavson's canonical WebGL-noise implementations (MIT licensed). The class is split across multiple partial-class files to separate concerns by dimensionality and noise family.
 
 ## Declaration
 
 ```csharp
 public static partial class Noise
 ```
-
-`Noise` is a static partial class that exposes high-quality, GPU-algorithm-style noise functions ported from Stefan Gustavson's canonical WebGL-noise implementations (MIT licensed). The class is split across multiple partial-class files to separate concerns by dimensionality and noise family.
 
 All functions are **stateless** — they produce the same output for the same input, making them safe for parallel use.
 
@@ -101,16 +101,6 @@ public static float CNoise(Float2 P)
 
 ---
 
-### `CNoise(Float3)`
-
-```csharp
-public static float CNoise(Float3 P)
-```
-
-3D classic Perlin noise. Uses an 8-corner cube lattice. Scaled by `2.2`.
-
----
-
 ## Periodic Perlin Noise (PNoise)
 
 Periodic variants of classic Perlin noise. The output tiles seamlessly when the input repeats with the given period. Useful for tileable textures and seamlessly looping animations.
@@ -133,21 +123,6 @@ public static float PNoise(Float2 P, Float2 rep)
 | `rep` | Period vector. The noise tiles when `P` repeats by `rep`. |
 
 **Example:** `PNoise(uv * 4f, new Float2(4f))` produces a 2D texture that tiles every 4 units.
-
----
-
-### `PNoise(Float3, Float3)`
-
-```csharp
-public static float PNoise(Float3 P, Float3 rep)
-```
-
-3D periodic classic Perlin noise.
-
-| Parameter | Description |
-|-----------|-------------|
-| `P` | 3D input coordinate. |
-| `rep` | Period vector for each axis independently. |
 
 ---
 
@@ -180,19 +155,95 @@ public static Float2 Cellular2D(Float2 P)
 
 ---
 
-### `Cellular3D(Float3)`
+## Periodic Simplex and Rotation-Invariant Noise (Psrd)
+
+The `Psrd` family implements periodic, rotation-invariant simplex noise for 2D coordinates. These functions are based on the PSRD (Periodic Simplex with Rotation and Derivatives) algorithm and can return both the noise value and its analytical gradient.
+
+---
+
+### `Psrd_PSRDNoise(Float2, Float2, float)`
 
 ```csharp
-public static Float2 Cellular3D(Float3 P)
+public static Float3 Psrd_PSRDNoise(Float2 pos, Float2 per, float rot)
 ```
 
-3D cellular noise (Worley noise) using a 3×3×3 search window. More expensive than 2D but produces volumetric cell patterns.
+Periodic simplex noise with rotation and gradient. Returns a `Float3` where `.X` is the noise value and `.YZ` is the analytical 2D gradient.
 
 | Parameter | Description |
 |-----------|-------------|
-| `P` | 3D input coordinate. |
+| `pos` | 2D input coordinate. |
+| `per` | Tiling period for each axis. |
+| `rot` | Rotation angle in radians applied to the gradient frame. |
 
-**Returns:** `Float2(F1, F2)` — Euclidean distances to the two nearest feature points.
+---
+
+### `Psrd_PSDNoise(Float2, Float2)`
+
+```csharp
+public static Float3 Psrd_PSDNoise(Float2 pos, Float2 per)
+```
+
+Periodic simplex noise with gradient, no rotation (`rot = 0`). Equivalent to `Psrd_PSRDNoise(pos, per, 0)`.
+
+---
+
+### `Psrd_PSRNoise(Float2, Float2, float)`
+
+```csharp
+public static float Psrd_PSRNoise(Float2 pos, Float2 per, float rot)
+```
+
+Periodic simplex noise with rotation. Returns only the scalar noise value (no gradient).
+
+---
+
+### `Psrd_PSNoise(Float2, Float2)`
+
+```csharp
+public static float Psrd_PSNoise(Float2 pos, Float2 per)
+```
+
+Periodic simplex noise, no rotation. Equivalent to `Psrd_PSRNoise(pos, per, 0)`.
+
+---
+
+### `Psrd_SRDNoise(Float2, float)`
+
+```csharp
+public static Float3 Psrd_SRDNoise(Float2 pos, float rot)
+```
+
+Non-periodic (infinite-domain) simplex noise with rotation and gradient. Returns `Float3(value, dX, dY)`.
+
+---
+
+### `Psrd_SDNoise(Float2)`
+
+```csharp
+public static Float3 Psrd_SDNoise(Float2 pos)
+```
+
+Non-periodic simplex noise with gradient, no rotation. Equivalent to `Psrd_SRDNoise(pos, 0)`.
+
+---
+
+### `SRNoise(Float2, float)`
+
+```csharp
+public static float SRNoise(Float2 pos, float rot)
+```
+
+Non-periodic simplex noise with rotation. Returns only the scalar noise value.
+
+---
+
+### `Psrd_SNoise(Float2)`
+
+```csharp
+public static float Psrd_SNoise(Float2 pos)
+```
+
+Non-periodic simplex noise, no rotation. Equivalent to `SRNoise(pos, 0)`.
 
 ---
 
@@ -221,6 +272,15 @@ float animated = Noise.SNoise(new Float4(x, y, z, time * 0.5f));
 ```csharp
 Float2 rep = new Float2(8f, 8f);
 float tile = Noise.PNoise(uv * 8f, rep);
+```
+
+### Periodic Noise with Gradient
+
+```csharp
+// Get both value and derivative for normal-map generation
+Float3 result = Noise.Psrd_PSDNoise(uv * 4f, new Float2(4f));
+float height = result.X;
+Float2 gradient = new Float2(result.Y, result.Z);
 ```
 
 ---
@@ -309,3 +369,4 @@ for (int x = 0; x < 128; x++)
 - The underlying permutation and gradient tables are computed on the fly using polynomial hash functions (`Permute`, `Mod289`, `TaylorInvSqrt`). There is no initialization cost.
 - Attribution: implementations are based on [stegu/webgl-noise](https://github.com/stegu/webgl-noise) by Stefan Gustavson, released under the MIT License.
 - For terrain generation, FBM (Fractal Brownian Motion) layering of SNoise is recommended. For material patterns (leather, stone), cellular noise with `F2 - F1` is the most versatile starting point.
+- The `Psrd` functions are particularly useful when you need both a noise value and its analytical gradient (e.g., for bump mapping or flow fields) without computing finite differences.

@@ -1,10 +1,10 @@
 ---
-title: "Color, Color32, Rect, and IntRect Types"
+title: "Color, Color32, Rect, and IntRect in Prowl.Vector C#"
 sidebarTitle: "Colors & Rects"
-description: "Float RGBA Color and byte RGBA Color32 types, named color constants in Colors, plus Rect and IntRect for 2D rectangle math."
+description: "Float RGBA Color and byte RGBA Color32 types, W3C named color constants on Color, plus Rect and IntRect for 2D bounding rectangle math."
 ---
 
-Prowl.Vector provides two complementary color types and two rectangle types for 2D spatial work. `Color` stores RGBA channels as `float` values in the **[0, 1]** range, making it the standard type for shader parameters, material properties, and color math. `Color32` stores the same four channels as `byte` values in the **[0, 255]** range, matching the format of raw pixel data and packed GPU textures. The static `Colors` class is a namespace anchor for W3C-standard named color constants defined directly on `Color`. `Rect` and `IntRect` represent axis-aligned bounding rectangles with float and integer precision respectively, and share a rich set of spatial query methods.
+Prowl.Vector provides two complementary color types and two rectangle types for 2D spatial work. `Color` stores RGBA channels as `float` values in the **[0, 1]** range, making it the standard type for shader parameters, material properties, and color math. `Color32` stores the same four channels as `byte` values in the **[0, 255]** range, matching the format of raw pixel data and packed GPU textures. Over 140 W3C-standard named color constants (such as `Color.Red`, `Color.SkyBlue`) are defined as static properties directly on the `Color` struct. `Rect` and `IntRect` represent axis-aligned bounding rectangles with float and integer precision respectively, and share a rich set of spatial query methods.
 
 ---
 
@@ -162,7 +162,7 @@ uint    u   = ((Color)c32).GetUInt(); // packed RGBA via Color32 conversion
 
 ## Colors (Named Color Constants)
 
-The W3C-standard named colors are defined as static properties directly on the `Color` struct. The `Colors` static class in `Prowl.Vector` serves as the namespace anchor for this standard, while the actual constants are accessible via `Color.*`:
+All W3C-standard named colors are defined as static properties directly on the `Color` struct. The `Colors` static class exists in the `Prowl.Vector` namespace but the actual constants are accessed via `Color.*`:
 
 ```csharp
 // Common named colors on Color
@@ -197,7 +197,7 @@ Over 140 W3C named colors are available in total.
 
 ## Rect
 
-`Rect` represents an axis-aligned rectangle in 2D float space. It stores two `Float2` corners: `Min` (bottom-left) and `Max` (top-right). The constructor always normalizes the corners so `Min ≤ Max` in both axes.
+`Rect` represents an axis-aligned rectangle in 2D float space. It stores two `Float2` corners: `Min` (the minimum corner) and `Max` (the maximum corner). The constructor always normalizes the corners so `Min ≤ Max` in both axes.
 
 ### Construction
 

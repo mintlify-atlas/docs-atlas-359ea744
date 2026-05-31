@@ -248,6 +248,19 @@ All cone overlap tests are backed by `GJK.Intersects`.
 
 ---
 
+### LineSegmentPlane
+
+```csharp
+public static bool LineSegmentPlane(
+    Float3 segA, Float3 segB,
+    Float3 planeNormal, float planeD,  // planeNormal assumed normalized
+    out Float3 intersectionPoint)
+```
+
+Tests whether a line segment intersects a plane and returns the world-space intersection point. Returns `false` if the segment is parallel to the plane (including coplanar cases) or if the intersection falls outside the segment extents.
+
+---
+
 ### 2D Segment–Segment
 
 ```csharp
@@ -263,6 +276,19 @@ Intersects two 2D line segments and returns the intersection point and the param
 ---
 
 ## Closest-Point Queries
+
+### ClosestPointOnLineToPoint
+
+```csharp
+public static void ClosestPointOnLineToPoint(
+    Float3 lineA, Float3 lineB,
+    Float3 point,
+    out Float3 closestPoint)
+```
+
+Projects `point` onto the **infinite** line defined by `lineA` and `lineB`. Unlike the segment variant, the result is not clamped and may fall outside the interval `[lineA, lineB]`.
+
+---
 
 ### ClosestPointOnLineSegmentToPoint
 

@@ -25,7 +25,6 @@ Simplex noise is a modern replacement for Classic Perlin noise. It uses fewer ar
 | `SNoise(Float2 v)` | 2D | Standard 2D simplex noise. |
 | `SNoise(Float3 v)` | 3D | Standard 3D simplex noise. |
 | `SNoise(Float4 v)` | 4D | Standard 4D simplex noise (higher quality, useful for animated 3D noise via a time `w` component). |
-| `SNoise(Float3 v, out Float3 gradient)` | 3D | 3D simplex noise that also returns the analytical gradient — useful for normal map generation or domain warping without finite differences. |
 
 ### Example — 2D heightmap
 
@@ -49,14 +48,6 @@ for (int x = 0; x < width; x++)
 ```csharp
 // Animate a 3D volume by sweeping through a 4th dimension over time.
 float noiseValue = Noise.SNoise(new Float4(pos.X, pos.Y, pos.Z, time * 0.5f));
-```
-
-### Example — Gradient output for normals
-
-```csharp
-float n = Noise.SNoise(new Float3(pos.X, pos.Y, pos.Z), out Float3 grad);
-// grad is the analytical derivative — use it directly as a surface normal
-Float3 normal = Float3.Normalize(new Float3(-grad.X, 1.0f, -grad.Y));
 ```
 
 ---
